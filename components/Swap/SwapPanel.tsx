@@ -103,12 +103,13 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
   };
 
   return (
-    <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 max-w-md mx-auto">
+    <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 p-6 shadow-2xl">
+      {/* 标题栏 */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-white">Swap</h3>
+        <h3 className="text-2xl font-bold text-white">Swap</h3>
         <button
           onClick={() => setSlippage(slippage === 0.5 ? 1 : 0.5)}
-          className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
+          className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-700"
         >
           滑点: {slippage}%
         </button>
@@ -116,23 +117,26 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
 
       {/* From 输入框 */}
       <div className="space-y-4">
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">支付</span>
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 hover:border-purple-500/30 transition-all duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-400">支付</span>
             {wallet?.connected && (
-              <span className="text-xs text-gray-500">
+              <button
+                onClick={() => handleFromAmountChange(wallet.balance.toString())}
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              >
                 余额: {wallet.balance.toFixed(4)} {fromToken}
-              </span>
+              </button>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <input
               type="number"
               value={fromAmount}
               onChange={(e) => handleFromAmountChange(e.target.value)}
               placeholder="0.00"
-              className="flex-1 bg-transparent text-2xl font-bold text-white outline-none"
+              className="flex-1 min-w-0 bg-transparent text-3xl font-bold text-white outline-none placeholder:text-gray-600"
             />
 
             {/* 代币选择器 */}
@@ -148,10 +152,10 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
         <div className="flex justify-center -my-2 relative z-10">
           <button
             onClick={handleSwapTokens}
-            className="w-10 h-10 bg-gray-800 rounded-full border-4 border-gray-900 flex items-center justify-center hover:bg-gray-700 transition-colors"
+            className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-full border-4 border-gray-800 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg hover:shadow-purple-500/50"
           >
             <svg
-              className="w-5 h-5 text-gray-400"
+              className="w-6 h-6 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -159,7 +163,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={2.5}
                 d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
               />
             </svg>
@@ -167,18 +171,18 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
         </div>
 
         {/* To 输入框 */}
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">接收</span>
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 hover:border-green-500/30 transition-all duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-400">接收</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <input
               type="number"
               value={toAmount}
               readOnly
               placeholder="0.00"
-              className="flex-1 bg-transparent text-2xl font-bold text-white outline-none"
+              className="flex-1 min-w-0 bg-transparent text-3xl font-bold text-white outline-none placeholder:text-gray-600"
             />
 
             {/* 代币选择器 */}
@@ -193,21 +197,36 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
 
       {/* 交易详情 */}
       {fromAmount && toAmount && (
-        <div className="mt-4 p-3 bg-gray-800/50 rounded-lg space-y-2 text-sm">
-          <div className="flex justify-between text-gray-400">
-            <span>汇率</span>
-            <span className="text-gray-300">
+        <div className="mt-6 p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/30 space-y-3 text-sm">
+          <div className="flex justify-between items-center text-gray-400">
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              汇率
+            </span>
+            <span className="text-white font-medium">
               1 {fromToken} ≈{' '}
               {fromToken === 'SOL' && toToken === 'USDC' ? '100' : '0.01'} {toToken}
             </span>
           </div>
-          <div className="flex justify-between text-gray-400">
-            <span>价格影响</span>
-            <span className="text-green-400">&lt; 0.01%</span>
+          <div className="flex justify-between items-center text-gray-400">
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              价格影响
+            </span>
+            <span className="text-green-400 font-medium">&lt; 0.01%</span>
           </div>
-          <div className="flex justify-between text-gray-400">
-            <span>最小接收</span>
-            <span className="text-gray-300">
+          <div className="flex justify-between items-center text-gray-400">
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              最小接收
+            </span>
+            <span className="text-white font-medium">
               {(parseFloat(toAmount) * (1 - slippage / 100)).toFixed(6)} {toToken}
             </span>
           </div>
@@ -218,7 +237,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
       <button
         onClick={handleSwap}
         disabled={!wallet?.connected || !fromAmount || isSwapping}
-        className="w-full mt-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-bold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+        className="w-full mt-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-purple-500/50 hover:scale-[1.02] active:scale-[0.98]"
       >
         {isSwapping ? (
           <span className="flex items-center justify-center gap-2">
@@ -226,17 +245,29 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
             交易中...
           </span>
         ) : !wallet?.connected ? (
-          '请先连接钱包'
+          <span className="flex items-center justify-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            请先连接钱包
+          </span>
         ) : !fromAmount ? (
           '请输入数量'
         ) : (
-          'Swap'
+          <span className="flex items-center justify-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            立即兑换
+          </span>
         )}
       </button>
 
       {/* 提示信息 */}
-      <div className="mt-4 text-center text-xs text-gray-500">
-        由 Jupiter 聚合器提供最优路径
+      <div className="mt-4 text-center">
+        <p className="text-xs text-gray-500">
+          由 <span className="text-purple-400 font-medium">Jupiter</span> 聚合器提供最优路径
+        </p>
       </div>
     </div>
   );
