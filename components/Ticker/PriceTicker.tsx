@@ -19,7 +19,7 @@ export function PriceTicker({ symbol }: PriceTickerProps) {
   // 订阅 Ticker 数据
   useEffect(() => {
     const unsubscribe = subscribe(symbol);
-    return () => unsubscribe();
+    return () =>  unsubscribe();
   }, [symbol, subscribe]);
 
   // 监听价格变化，触发颜色变化

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { TOKENS, getTokenBySymbol } from '@/constants/tokens';
-import { useWalletStore } from '@/stores';
+import { useWalletStore, useTransactionStore } from '@/stores';
+import { notify } from '@/stores/notification/useNotificationStore';
 
 interface SwapPanelProps {
   defaultFrom?: string;
@@ -14,6 +15,7 @@ interface SwapPanelProps {
  */
 export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanelProps) {
   const { wallet } = useWalletStore();
+  const { addTransaction } = useTransactionStore();
   const [fromToken, setFromToken] = useState(defaultFrom);
   const [toToken, setToToken] = useState(defaultTo);
   const [fromAmount, setFromAmount] = useState('');
@@ -54,30 +56,47 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
   // 执行 Swap
   const handleSwap = async () => {
     if (!wallet?.connected) {
-      alert('请先连接钱包');
+      notify.warning('请先连接钱包', '需要连接钱包才能进行交易');
       return;
     }
 
     if (!fromAmount || parseFloat(fromAmount) <= 0) {
-      alert('请输入有效的交易数量');
+      notify.warning('输入无效', '请输入有效的交易数量');
       return;
     }
 
     setIsSwapping(true);
 
     try {
+      // 记录交易到历史
+      addTransaction({
+        type: 'swap',
+        status: 'pending',
+        fromToken,
+        toToken,
+        fromAmount: parseFloat(fromAmount),
+        toAmount: parseFloat(toAmount),
+        signature: `mock_${Date.now()}`,
+      });
+
+      // 显示交易开始通知
+      notify.info('交易已提交', '正在处理您的 Swap 交易...');
+
       // 模拟交易延迟
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // 显示成功消息
-      alert(`Swap 成功！\n${fromAmount} ${fromToken} → ${toAmount} ${toToken}`);
+      // 显示成功通知
+      notify.success(
+        '交易成功！',
+        `${fromAmount} ${fromToken} → ${toAmount} ${toToken}`
+      );
 
       // 清空输入
       setFromAmount('');
       setToAmount('');
     } catch (error) {
       console.error('Swap error:', error);
-      alert('Swap 失败，请重试');
+      notify.error('交易失败', '请重试或检查网络连接');
     } finally {
       setIsSwapping(false);
     }

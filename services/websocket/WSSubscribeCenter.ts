@@ -12,7 +12,7 @@ import { API_ENDPOINTS } from '@/constants/api';
  * 4. 断线重连（指数退避）
  * 5. 消息队列 & 背压处理
  */
-class WSSubscribeCenter {
+export class WSSubscribeCenter {
   private ws: WebSocket | null = null;
   private messageQueue: WSMessageQueue;
   private reconnector: WSReconnector;
