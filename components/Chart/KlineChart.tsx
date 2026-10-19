@@ -22,6 +22,7 @@ export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) 
   const { interval, setInterval, isLoading } = useKlineData(
     symbol,
     defaultInterval,
+    chartRef,
     seriesRef
   );
 

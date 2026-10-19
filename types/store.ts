@@ -21,7 +21,7 @@ export interface KlineState {
 
   // Actions
   fetchHistory: (symbol: string, interval: KlineInterval, limit: number, before?: number) => Promise<KlineBar[]>;
-  subscribeBars: (symbol: string, interval: KlineInterval, callback: (bar: KlineBar) => void) => () => void;
+  subscribeBars: (symbol: string, interval: KlineInterval, lastBar: KlineBar, callback: (bar: KlineBar) => void) => () => void;
   unsubscribeBars: (symbol: string, interval: KlineInterval) => void;
   updateBar: (symbol: string, bar: KlineBar) => void;
   getFromCache: (symbol: string, interval: KlineInterval) => KlineBar[] | null;
