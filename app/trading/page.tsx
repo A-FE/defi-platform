@@ -7,8 +7,18 @@ import PriceTicker from '@/components/Ticker/PriceTicker';
 import { DEFAULT_SYMBOL } from '@/constants/api';
 
 // 动态导入大组件（代码分割）
+const KlineChart = dynamic(() => import('@/components/Chart/KlineChart'), {
+  loading: () => <ChartSkeleton />,
+  ssr: false,
+});
+
 const OrderBook = dynamic(() => import('@/components/OrderBook/OrderBook'), {
   loading: () => <OrderBookSkeleton />,
+  ssr: false,
+});
+
+const SwapPanel = dynamic(() => import('@/components/Swap/SwapPanel'), {
+  loading: () => <SwapSkeleton />,
   ssr: false,
 });
 
@@ -58,32 +68,11 @@ export default function TradingPage() {
 
         {/* 交易布局 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* 左侧：K线图占位 */}
+          {/* 左侧：K线图 */}
           <div className="lg:col-span-9">
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 h-[600px] flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold mb-2">K线图</h3>
-                <p className="text-gray-400 text-sm">即将推出...</p>
-                <p className="text-gray-500 text-xs mt-2">
-                  TradingView Lightweight Charts 集成中
-                </p>
-              </div>
-            </div>
+            <Suspense fallback={<ChartSkeleton />}>
+              <KlineChart symbol={symbol} defaultInterval="1h" />
+            </Suspense>
           </div>
 
           {/* 右侧：订单簿 */}
@@ -94,27 +83,11 @@ export default function TradingPage() {
           </div>
         </div>
 
-        {/* 底部：Swap 交易面板占位 */}
-        <div className="mt-6 p-6 bg-gray-900 rounded-lg border border-gray-800">
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold mb-2">Swap 交易</h3>
-            <p className="text-gray-400 text-sm">Jupiter 聚合器集成中...</p>
-          </div>
+        {/* 底部：Swap 交易面板 */}
+        <div className="mt-6">
+          <Suspense fallback={<SwapSkeleton />}>
+            <SwapPanel defaultFrom="SOL" defaultTo="USDC" />
+          </Suspense>
         </div>
       </main>
 
@@ -144,6 +117,22 @@ export default function TradingPage() {
 }
 
 /**
+ * K线图骨架屏
+ */
+function ChartSkeleton() {
+  return (
+    <div className="bg-gray-900 rounded-lg border border-gray-800 p-4 h-[600px] animate-pulse">
+      <div className="flex gap-2 mb-4">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="h-8 bg-gray-800 rounded w-12" />
+        ))}
+      </div>
+      <div className="h-full bg-gray-800 rounded" />
+    </div>
+  );
+}
+
+/**
  * 订单簿骨架屏
  */
 function OrderBookSkeleton() {
@@ -155,6 +144,22 @@ function OrderBookSkeleton() {
           <div key={i} className="h-6 bg-gray-800 rounded" />
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Swap 骨架屏
+ */
+function SwapSkeleton() {
+  return (
+    <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 max-w-md mx-auto animate-pulse">
+      <div className="h-6 bg-gray-800 rounded w-24 mb-6" />
+      <div className="space-y-4">
+        <div className="h-32 bg-gray-800 rounded-lg" />
+        <div className="h-32 bg-gray-800 rounded-lg" />
+      </div>
+      <div className="h-12 bg-gray-800 rounded-lg mt-6" />
     </div>
   );
 }
