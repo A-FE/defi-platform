@@ -11,12 +11,13 @@ export function useKlineData(
   symbol: string,
   defaultInterval: KlineInterval,
   chartRef: React.RefObject<IChartApi | null>,
-  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>
+  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>,
+  updateRealtimeIndicators?: (bar: any, allBars: any[]) => void
 ) {
   const [interval, setIntervalState] = useState<KlineInterval>(defaultInterval);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const unsubscribeRef = useRef<(() => void) | undefined>();
+  const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
 
   // 追踪已加载的数据范围
   const oldestTimeRef = useRef<number | null>(null);
@@ -53,6 +54,14 @@ export function useKlineData(
 
         // 获取当前最早的K线，用于连接新的历史数据
         const oldestCurrentBar = currentData[0];
+
+        // 检查是否为有效的蜡烛图数据
+        if (!('open' in oldestCurrentBar)) {
+          isLoadingMoreRef.current = false;
+          setIsLoadingMore(false);
+          return;
+        }
+
         const targetPrice = oldestCurrentBar.open; // 新历史数据的最后一根应该close到这个价格
 
         console.log(`[loadMoreHistory] 当前最早K线: time=${oldestCurrentBar.time}, open=${oldestCurrentBar.open}`);
@@ -211,6 +220,12 @@ export function useKlineData(
               low: bar.low,
               close: bar.close,
             });
+
+            // 更新指标
+            if (updateRealtimeIndicators) {
+              const currentData = seriesRef.current.data();
+              updateRealtimeIndicators(bar, currentData as any);
+            }
           }
         });
 

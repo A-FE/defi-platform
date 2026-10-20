@@ -29,7 +29,7 @@ export default function MarketPage() {
       <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-400 mr-2">选择品种:</span>
-          {MARKET_SYMBOLS.map((market) => (
+          {MARKET_SYMBOLS?.map((market) => (
             <button
               key={market.symbol}
               onClick={() => setSelectedSymbol(market.symbol)}
