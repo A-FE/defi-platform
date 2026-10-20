@@ -19,7 +19,7 @@ export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) 
   const { containerRef, chartRef, seriesRef } = useChartInit();
 
   // K线数据管理
-  const { interval, setInterval, isLoading } = useKlineData(
+  const { interval, setInterval, isLoading, isLoadingMore } = useKlineData(
     symbol,
     defaultInterval,
     chartRef,
@@ -35,13 +35,21 @@ export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) 
       <div className="flex-1 relative">
         <div ref={containerRef} className="absolute inset-0" />
 
-        {/* 加载状态 */}
+        {/* 初始加载状态 */}
         {isLoading && (
           <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-gray-400">加载中...</span>
             </div>
+          </div>
+        )}
+
+        {/* 左侧加载更多指示器 */}
+        {isLoadingMore && (
+          <div className="absolute left-4 top-4 bg-gray-800/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-gray-700 flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-300">加载历史数据...</span>
           </div>
         )}
       </div>
@@ -51,6 +59,7 @@ export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) 
         <div className="flex items-center gap-4">
           <span>• 滚轮缩放</span>
           <span>• 拖拽平移</span>
+          <span>• 左滑加载历史</span>
         </div>
         <span>TradingView Lightweight Charts</span>
       </div>
