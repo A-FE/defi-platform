@@ -36,17 +36,19 @@ export const INTERVAL_LABELS: Record<KlineInterval, string> = {
 };
 
 /**
- * 交易对列表
+ * 行情品种列表
  */
-export const TRADING_PAIRS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'SOLUSDT',
-  'BNBUSDT',
+export const MARKET_SYMBOLS = [
+  { symbol: 'BTCUSDT', name: 'BTC/USDT', baseAsset: 'BTC', quoteAsset: 'USDT' },
+  { symbol: 'ETHUSDT', name: 'ETH/USDT', baseAsset: 'ETH', quoteAsset: 'USDT' },
+  { symbol: 'SOLUSDT', name: 'SOL/USDT', baseAsset: 'SOL', quoteAsset: 'USDT' },
+  { symbol: 'BNBUSDT', name: 'BNB/USDT', baseAsset: 'BNB', quoteAsset: 'USDT' },
+  { symbol: 'ADAUSDT', name: 'ADA/USDT', baseAsset: 'ADA', quoteAsset: 'USDT' },
+  { symbol: 'DOGEUSDT', name: 'DOGE/USDT', baseAsset: 'DOGE', quoteAsset: 'USDT' },
 ];
 
 /**
- * 默认交易对
+ * 默认行情品种
  */
 export const DEFAULT_SYMBOL = 'BTCUSDT';
 

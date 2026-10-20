@@ -13,7 +13,7 @@ export default function Home() {
             <span className="text-xl font-bold text-white">DeFi Trading</span>
           </div>
           <Link
-            href="/trading"
+            href="/market"
             className="px-6 py-2 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-colors"
           >
             启动应用
@@ -27,7 +27,7 @@ export default function Home() {
           {/* 标题 */}
           <div className="mb-8">
             <span className="inline-block px-4 py-2 bg-purple-600/20 text-purple-300 text-sm rounded-full mb-4 border border-purple-500/30">
-              基于 Solana 的去中心化交易平台
+              基于 Solana 的去中心化行情平台
             </span>
             <h1 className="text-6xl font-bold text-white mb-6 leading-tight">
               新一代 DeFi
@@ -46,10 +46,10 @@ export default function Home() {
           {/* CTA 按钮 */}
           <div className="flex items-center justify-center gap-4 mb-16">
             <Link
-              href="/trading"
+              href="/market"
               className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
-              开始交易
+              查看行情
             </Link>
             <a
               href="https://github.com"

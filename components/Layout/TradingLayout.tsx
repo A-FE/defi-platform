@@ -9,16 +9,16 @@ interface TradingLayoutProps {
 }
 
 /**
- * 交易页面共享布局
+ * 行情页面共享布局
  */
 export function TradingLayout({ children }: TradingLayoutProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/trading', label: '交易', icon: '📊' },
-    { href: '/trading/swap', label: 'Swap', icon: '🔄' },
-    { href: '/trading/portfolio', label: '资产', icon: '💼' },
-    { href: '/trading/history', label: '历史', icon: '📜' },
+    { href: '/market', label: '行情', icon: '📊' },
+    { href: '/market/swap', label: 'Swap', icon: '🔄' },
+    { href: '/market/portfolio', label: '资产', icon: '💼' },
+    { href: '/market/history', label: '历史', icon: '📜' },
   ];
 
   return (
@@ -94,7 +94,7 @@ export function TradingLayout({ children }: TradingLayoutProps) {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-gray-400">
             <div>
-              <p>DeFi Trading Platform - Powered by Solana</p>
+              <p>DeFi Trading - Powered by Solana</p>
             </div>
             <div className="flex items-center gap-4">
               <a href="#" className="hover:text-white transition-colors">

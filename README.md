@@ -1,6 +1,6 @@
-# DeFi 交易平台 (Solana)
+# DeFi 行情平台 (Solana)
 
-> 基于 Next.js 14 + React + TypeScript + Solana 的去中心化交易平台前端
+> 基于 Next.js 14 + React + TypeScript + Solana 的去中心化行情展示平台前端
 
 ## 📋 项目概览
 
@@ -9,7 +9,7 @@
 - **DeFi 核心概念**：DEX、AMM、永续合约、流动性池
 - **Solana 生态**：钱包集成、交易签名、链上数据读取
 - **实时数据处理**：WebSocket 高频数据流、订单簿渲染优化
-- **交易 UI 架构**：K线图、深度图、持仓管理等复杂组件
+- **行情 UI 架构**：K线图、深度图、多品种切换等复杂组件
 - **性能优化**：Core Web Vitals（LCP < 2.5s, INP < 200ms, CLS < 0.1）
 
 ## 🛠️ 技术栈
@@ -28,9 +28,9 @@
 
 ## 🎯 核心功能
 
-- ✅ **钱包管理**：Phantom、Solflare 连接
-- ✅ **现货交易（Swap）**：Jupiter 聚合器集成
+- ✅ **多品种行情**：支持 BTC、ETH、SOL、BNB、ADA、DOGE 等多个品种切换
 - ✅ **实时行情**：K线图、订单簿深度图、Ticker 价格面板
+- ✅ **钱包管理**：Phantom、Solflare 连接
 - ✅ **资产管理**：账户余额、持仓列表、浮动盈亏计算
 
 ## 📁 项目结构
@@ -109,6 +109,8 @@ npm run dev
 
 打开 [http://localhost:3000](http://localhost:3000) 查看应用。
 
+访问行情页面：[http://localhost:3000/market](http://localhost:3000/market)
+
 ## 🏗️ 架构设计
 
 ### WebSocket 订阅中心
@@ -186,9 +188,10 @@ External Services (WebSocket / HTTP / Solana RPC)
 - ✅ WebSocket 订阅中心
 - 🔄 钱包集成
 
-### Phase 2: 核心交易功能 (Week 3-5)
-- [ ] K线图组件
-- [ ] 实时价格 Ticker
+### Phase 2: 核心行情功能 (Week 3-5)
+- [x] K线图组件
+- [x] 实时价格 Ticker
+- [x] 多品种切换
 - [ ] Jupiter Swap 集成
 - [ ] 交易历史
 
@@ -208,7 +211,12 @@ External Services (WebSocket / HTTP / Solana RPC)
 
 - [技术方案文档](../docs/技术方案文档_DeFi交易平台_v1.0.md)
 - [代码组织规范](../docs/代码组织与模块拆分规范.md)
-- [实现计划](.claude/plans/defi-platform-implementation.md)
+
+## 🎨 页面导航
+
+- 首页：`/`
+- 行情页面：`/market` - 支持多品种切换的实时行情展示
+- Swap 页面：`/market/swap` - 代币兑换功能
 
 ## 🤝 贡献指南
 

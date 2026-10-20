@@ -1,4 +1,14 @@
 /**
+ * 行情品种信息
+ */
+export interface MarketSymbol {
+  symbol: string;
+  name: string;
+  baseAsset: string;
+  quoteAsset: string;
+}
+
+/**
  * K线周期类型
  */
 export type KlineInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d' | '1w';
@@ -95,17 +105,17 @@ export interface AssetData {
 }
 
 /**
- * 交易类型
+ * 操作类型（替代原"交易类型"）
  */
 export type TransactionType = 'swap' | 'transfer' | 'deposit' | 'withdraw';
 
 /**
- * 交易状态
+ * 操作状态（替代原"交易状态"）
  */
 export type TransactionStatus = 'pending' | 'success' | 'failed';
 
 /**
- * 交易记录
+ * 操作记录（替代原"交易记录"）
  */
 export interface TransactionInfo {
   id: string;
