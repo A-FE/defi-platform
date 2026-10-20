@@ -2,23 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { KlineState, KlineCacheItem } from '@/types/store';
 import { KlineBar, KlineInterval } from '@/types/market';
-import { klineMockService } from '@/services/mock';
-
-/**
- * 获取周期对应的毫秒数
- */
-const getIntervalMs = (interval: KlineInterval): number => {
-  const map: Record<KlineInterval, number> = {
-    '1m': 60 * 1000,
-    '5m': 5 * 60 * 1000,
-    '15m': 15 * 60 * 1000,
-    '1h': 60 * 60 * 1000,
-    '4h': 4 * 60 * 60 * 1000,
-    '1d': 24 * 60 * 60 * 1000,
-    '1w': 7 * 24 * 60 * 60 * 1000,
-  };
-  return map[interval];
-};
+import { klineSessionManager, TimeAlignmentUtil } from '@/services/mock/kline';
 
 /**
  * K线 Store
@@ -39,8 +23,11 @@ export const useKlineStore = create<KlineState>()(
         set({ isLoading: true });
 
         try {
-          // 开发阶段：使用 Mock 数据
-          const bars = klineMockService.generateHistory(symbol, interval, limit, before);
+          // 获取或创建该 symbol+interval 的会话
+          const session = klineSessionManager.getOrCreateSession(symbol, interval);
+
+          // 生成历史数据
+          const bars = session.generateHistory(limit, before);
 
           // 确保 time 字段是 number 类型
           const validBars = bars.map((bar) => ({
@@ -64,44 +51,54 @@ export const useKlineStore = create<KlineState>()(
        * 订阅实时 K线更新
        */
       subscribeBars: (symbol, interval, lastBar, callback) => {
-        // 从历史数据的最后一根 K 线开始
-        let lastBarTime: number = lastBar.time;
-        let lastClose: number = lastBar.close;
+        // 获取该 symbol+interval 的会话
+        const session = klineSessionManager.getOrCreateSession(symbol, interval);
 
-        // 开发阶段：使用 Mock 数据模拟实时更新
+        // 根据K线周期动态调整更新频率
+        // 1m/5m 周期：每1秒更新（实时感强）
+        // 15m/1h 周期：每2秒更新
+        // 4h/1d/1w 周期：每5秒更新
+        const updateIntervalMap: Record<KlineInterval, number> = {
+          '1m': 1000,   // 1秒
+          '5m': 1000,   // 1秒
+          '15m': 2000,  // 2秒
+          '1h': 2000,   // 2秒
+          '4h': 5000,   // 5秒
+          '1d': 5000,   // 5秒
+          '1w': 5000,   // 5秒
+        };
+        const updateInterval = updateIntervalMap[interval] || 2000;
+
+        // 使用统一的时间对齐工具计算当前 bar 的时间
+        let lastBarTime = lastBar.time;
+
+        // 开发阶段：使用会话生成实时更新
         const mockInterval = setInterval(() => {
-          const now = Math.floor(Date.now() / 1000);
-          const intervalMs = getIntervalMs(interval);
-          const currentBarStartTime = Math.floor(now / (intervalMs / 1000)) * (intervalMs / 1000);
+          try {
+            // 每次都重新计算当前对齐的时间戳，确保准确性
+            const currentBarTime = TimeAlignmentUtil.getCurrentAlignedTime(interval);
 
-          let bar: KlineBar;
+            // 生成实时更新
+            const bar = session.generateRealtimeUpdate(currentBarTime);
 
-          // 如果当前时间仍在最后一根 K 线的周期内，更新它
-          if (currentBarStartTime === lastBarTime) {
-            // 更新当前 K 线（使用相同的时间戳）
-            bar = klineMockService.generateRealtimeBar(interval, lastClose);
-            bar.time = lastBarTime; // 确保时间不变
-          } else if (currentBarStartTime > lastBarTime) {
-            // 生成新的 K 线（时间必须大于最后一根）
-            bar = klineMockService.generateRealtimeBar(interval, lastClose);
-            lastBarTime = bar.time;
-          } else {
-            // 当前时间早于最后一根 K 线，跳过（不应该发生）
-            console.warn('[subscribeBars] Current bar time is older than last bar, skipping');
-            return;
+            // 只有时间戳有效时才回调
+            if (TimeAlignmentUtil.validateBarTime(bar.time, lastBarTime)) {
+              lastBarTime = bar.time;
+              callback(bar);
+
+              // 更新 Store 中的最新 bar
+              get().updateBar(symbol, bar);
+            }
+          } catch (error) {
+            console.error('[subscribeBars] 生成实时更新失败:', error);
           }
-
-          lastClose = bar.close; // 保存当前收盘价
-
-          callback(bar);
-
-          // 更新 Store 中的最新 bar
-          get().updateBar(symbol, bar);
-        }, 5000); // 每 5 秒更新一次
+        }, updateInterval);
 
         // 返回取消订阅函数
         return () => {
           clearInterval(mockInterval);
+          // 销毁该会话，清理状态
+          klineSessionManager.destroySession(symbol, interval);
         };
       },
 
@@ -109,8 +106,8 @@ export const useKlineStore = create<KlineState>()(
        * 取消订阅
        */
       unsubscribeBars: (symbol, interval) => {
-        // WebSocket 取消订阅逻辑
-        // wsCenter.unsubscribeSymbol(symbol, ['bar_update']);
+        // 销毁对应的会话，清理状态
+        klineSessionManager.destroySession(symbol, interval);
       },
 
       /**

@@ -38,7 +38,7 @@ export function useKlineData(
         // 3. setData() 设置数据
         if (bars.length > 0) {
           const data = bars.map((bar) => {
-            // 确保 time 是 number 类型
+            // 确保 time 是 number 类型（秒级 UTC 时间戳）
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
             if (isNaN(time)) {
@@ -47,7 +47,7 @@ export function useKlineData(
             }
 
             return {
-              time,
+              time: time as any, // lightweight-charts 需要 UTCTimestamp 类型
               open: bar.open,
               high: bar.high,
               low: bar.low,
@@ -77,7 +77,7 @@ export function useKlineData(
         const lastBar = bars[bars.length - 1];
         const unsubscribe = subscribeBars(symbol, newInterval, lastBar, (bar) => {
           if (seriesRef.current) {
-            // 确保 time 是 number 类型
+            // 确保 time 是 number 类型（秒级 UTC 时间戳）
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
             if (isNaN(time)) {
@@ -87,7 +87,7 @@ export function useKlineData(
 
             // 实时更新只用 update()，不频繁 setData()
             seriesRef.current.update({
-              time,
+              time: time as any, // lightweight-charts 需要 UTCTimestamp 类型
               open: bar.open,
               high: bar.high,
               low: bar.low,
@@ -138,16 +138,24 @@ export function useKlineData(
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
+    const cleanup = () => {
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = undefined;
+      }
+      // 同时清理 ref 中的订阅
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = undefined;
+      }
+    };
+
     loadKlineData(interval).then((unsub) => {
       unsubscribe = unsub;
     });
 
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [symbol]);
+    return cleanup;
+  }, [symbol, interval, loadKlineData]);
 
   return {
     interval,

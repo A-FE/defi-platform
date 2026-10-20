@@ -21,7 +21,11 @@ export class KlineMockService {
   ): KlineBar[] {
     const bars: KlineBar[] = [];
     const intervalMs = this.getIntervalMs(interval);
-    const endTime = before || Math.floor(Date.now() / 1000);
+
+    // 确保 endTime 对齐到K线周期的开始时间
+    const now = before || Math.floor(Date.now() / 1000);
+    const intervalSeconds = intervalMs / 1000;
+    const endTime = Math.floor(now / intervalSeconds) * intervalSeconds;
 
     // 重置状态
     this.lastBar = null;
@@ -29,7 +33,7 @@ export class KlineMockService {
     this.trendStrength = 0.3 + Math.random() * 0.4; // 趋势强度 0.3-0.7
 
     for (let i = limit - 1; i >= 0; i--) {
-      const time = endTime - i * (intervalMs / 1000);
+      const time = endTime - i * intervalSeconds;
       const bar = this.generateBar(time);
       bars.push(bar);
 
@@ -95,10 +99,13 @@ export class KlineMockService {
   /**
    * 生成实时更新的 K线（不修改 lastBar 状态）
    */
-  generateRealtimeBar(interval: KlineInterval, prevClose?: number): KlineBar {
-    const now = Math.floor(Date.now() / 1000);
-    const intervalMs = this.getIntervalMs(interval);
-    const barStartTime = Math.floor(now / (intervalMs / 1000)) * (intervalMs / 1000);
+  generateRealtimeBar(interval: KlineInterval, prevClose?: number, barTime?: number): KlineBar {
+    // 使用传入的时间戳，或者自动计算
+    const barStartTime = barTime || (() => {
+      const now = Math.floor(Date.now() / 1000);
+      const intervalMs = this.getIntervalMs(interval);
+      return Math.floor(now / (intervalMs / 1000)) * (intervalMs / 1000);
+    })();
 
     // 使用提供的 prevClose 或当前的 lastBar.close
     const open = prevClose || this.lastBar?.close || this.basePrice;
