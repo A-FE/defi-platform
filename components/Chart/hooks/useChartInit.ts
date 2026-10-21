@@ -4,7 +4,8 @@ import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 
 /**
  * 图表初始化 Hook
- * 职责：创建图表、配置、响应式调整、销毁
+ * 职责：创建单个 chart，只包含主 pane（K线）
+ * 副图 pane 将根据启用的指标动态创建
  */
 export function useChartInit() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -15,7 +16,7 @@ export function useChartInit() {
     if (!containerRef.current) return;
 
     try {
-      // 创建图表
+      // 创建图表（只包含主 pane）
       const chart = createChart(containerRef.current, {
         width: containerRef.current.clientWidth,
         height: containerRef.current.clientHeight,
@@ -29,19 +30,19 @@ export function useChartInit() {
         },
       });
 
-      // lightweight-charts 5.x 正确的 API：
-      // 使用 chart.addSeries(CandlestickSeries, options)
+      chartRef.current = chart;
+
+      // 在主 pane (0) 上添加 K 线系列
       const candlestickSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#10b981',
         downColor: '#ef4444',
         wickUpColor: '#10b981',
         wickDownColor: '#ef4444',
-      });
+      }, 0);
 
-      chartRef.current = chart;
       seriesRef.current = candlestickSeries;
 
-      console.log('Chart initialized successfully');
+      console.log('Chart initialized with main pane (index 0)');
 
       // 响应式处理
       const handleResize = () => {
@@ -65,5 +66,9 @@ export function useChartInit() {
     }
   }, []);
 
-  return { containerRef, chartRef, seriesRef };
+  return {
+    containerRef,
+    chartRef,
+    seriesRef,
+  };
 }

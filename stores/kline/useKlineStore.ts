@@ -1,12 +1,31 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { KlineState, KlineCacheItem } from '@/types/store';
-import { KlineBar, KlineInterval } from '@/types/market';
+import { KlineInterval } from '@/types/market';
 import { klineSessionManager, TimeAlignmentUtil } from '@/services/mock/kline';
+import { fetchKlineWithIndicators } from '@/services/api/indicatorApi';
+import { IndicatorKlineItem } from '@/types/api';
 
 /**
- * K线 Store
+ * 辅助函数：获取 K 线周期对应的秒数
+ */
+function getIntervalSeconds(interval: KlineInterval): number {
+  const map: Record<KlineInterval, number> = {
+    '1m': 60,
+    '5m': 300,
+    '15m': 900,
+    '1h': 3600,
+    '4h': 14400,
+    '1d': 86400,
+    '1w': 604800,
+  };
+  return map[interval] || 3600;
+}
+
+/**
+ * K线 Store V2
  * 职责：管理 K线数据、缓存、订阅
+ * 核心改变：统一使用 IndicatorKlineItem，移除 fetchHistory
  */
 export const useKlineStore = create<KlineState>()(
   persist(
@@ -17,47 +36,99 @@ export const useKlineStore = create<KlineState>()(
       isLoading: false,
 
       /**
-       * 拉取历史 K线数据
+       * 统一的 K 线数据获取方法
+       * @param symbol 交易对
+       * @param interval K线周期
+       * @param from 开始时间（UTC 秒）
+       * @param to 结束时间（UTC 秒）
+       * @param indicators 指标配置列表（可选，为空则只返回 K 线）
        */
-      fetchHistory: async (symbol, interval, limit, before?) => {
+      fetchKlines: async (symbol, interval, from, to, indicators = []) => {
         set({ isLoading: true });
 
         try {
-          // 获取或创建该 symbol+interval 的会话
-          const session = klineSessionManager.getOrCreateSession(symbol, interval);
+          // 🔧 开发模式：使用 mock 数据
+          const useMock = process.env.NODE_ENV === 'development' ||
+                          !process.env.NEXT_PUBLIC_INDICATOR_API_ENABLED;
 
-          // 生成历史数据
-          const bars = session.generateHistory(limit, before);
+          if (useMock) {
+            console.log('[DEV MODE] fetchKlines:', {
+              symbol,
+              interval,
+              from: new Date(from * 1000).toISOString(),
+              to: new Date(to * 1000).toISOString(),
+              hasIndicators: indicators.length > 0,
+            });
 
-          // 确保 time 字段是 number 类型
-          const validBars = bars.map((bar) => ({
-            ...bar,
-            time: typeof bar.time === 'number' ? bar.time : Number(bar.time),
-          }));
+            // 1. 生成基础 K 线数据
+            const session = klineSessionManager.getOrCreateSession(symbol, interval);
+            const limit = Math.ceil((to - from) / getIntervalSeconds(interval));
 
-          // 保存到缓存
-          get().saveToCache(symbol, interval, validBars);
+            // ✅ 使用 before 参数生成指定时间范围之前的历史数据
+            // before 参数表示"获取这个时间之前的数据"
+            const rawBars = session.generateHistory(limit, to);
 
-          set({ bars: validBars, interval, isLoading: false });
-          return validBars;
+            // 转换为 IndicatorKlineItem 格式
+            const bars: IndicatorKlineItem[] = rawBars.map(bar => ({
+              time: typeof bar.time === 'number' ? bar.time : Number(bar.time),
+              open: bar.open,
+              high: bar.high,
+              low: bar.low,
+              close: bar.close,
+              volume: bar.volume,
+              indicators: {}  // 初始为空
+            }));
+
+            // 2. 如果有指标配置，计算指标
+            if (indicators.length > 0) {
+              const { mockCalculateIndicators } = await import('@/services/mock/indicatorMock');
+              const barsWithIndicators = mockCalculateIndicators(bars, {
+                symbol,
+                resolution: interval,
+                from,
+                to,
+                indicators,
+              });
+
+              get().saveToCache(symbol, interval, barsWithIndicators);
+              set({ bars: barsWithIndicators, interval, isLoading: false });
+              return barsWithIndicators;
+            }
+
+            // 3. 没有指标配置，直接返回（indicators 已经是空对象）
+            get().saveToCache(symbol, interval, bars);
+            set({ bars, interval, isLoading: false });
+            return bars;
+          }
+
+          // 🚀 生产模式：调用真实后端接口
+          const response = await fetchKlineWithIndicators({
+            symbol,
+            resolution: interval,
+            from,
+            to,
+            indicators,
+          });
+
+          get().saveToCache(symbol, interval, response.bars);
+          set({ bars: response.bars, interval, isLoading: false });
+          return response.bars;
+
         } catch (error) {
-          console.error('Fetch K-line history error:', error);
+          console.error('[fetchKlines] 获取数据失败:', error);
           set({ isLoading: false });
           return [];
         }
       },
 
       /**
-       * 订阅实时 K线更新
+       * 订阅实时 K线更新（WebSocket 只推送 K 线，不带指标）
        */
       subscribeBars: (symbol, interval, lastBar, callback) => {
         // 获取该 symbol+interval 的会话
         const session = klineSessionManager.getOrCreateSession(symbol, interval);
 
         // 根据K线周期动态调整更新频率
-        // 1m/5m 周期：每1秒更新（实时感强）
-        // 15m/1h 周期：每2秒更新
-        // 4h/1d/1w 周期：每5秒更新
         const updateIntervalMap: Record<KlineInterval, number> = {
           '1m': 1000,   // 1秒
           '5m': 1000,   // 1秒
@@ -84,10 +155,22 @@ export const useKlineStore = create<KlineState>()(
             // 只有时间戳有效时才回调
             if (TimeAlignmentUtil.validateBarTime(bar.time, lastBarTime)) {
               lastBarTime = bar.time;
-              callback(bar);
+
+              // ✅ 转换为 IndicatorKlineItem 格式（WebSocket 不推送指标）
+              const klineItem: IndicatorKlineItem = {
+                time: typeof bar.time === 'number' ? bar.time : Number(bar.time),
+                open: bar.open,
+                high: bar.high,
+                low: bar.low,
+                close: bar.close,
+                volume: bar.volume,
+                indicators: {},  // WebSocket 不推送指标
+              };
+
+              callback(klineItem);
 
               // 更新 Store 中的最新 bar
-              get().updateBar(symbol, bar);
+              get().updateBar(symbol, klineItem);
             }
           } catch (error) {
             console.error('[subscribeBars] 生成实时更新失败:', error);
@@ -120,7 +203,11 @@ export const useKlineStore = create<KlineState>()(
 
           // 如果是同一根 K线（时间相同），则更新
           if (lastBar && lastBar.time === bar.time) {
-            bars[bars.length - 1] = bar;
+            // 更新 K 线数据，但保留已有的指标数据
+            bars[bars.length - 1] = {
+              ...bar,
+              indicators: lastBar.indicators || {}  // 保留原有指标
+            };
           } else {
             // 否则添加新 K线
             bars.push(bar);

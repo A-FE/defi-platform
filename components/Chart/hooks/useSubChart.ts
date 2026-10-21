@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { createChart } from 'lightweight-charts';
 import type { IChartApi } from 'lightweight-charts';
 
@@ -10,12 +10,13 @@ import type { IChartApi } from 'lightweight-charts';
 export function useSubChart(mainChartRef?: React.RefObject<IChartApi | null>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
+  // 创建副图
   useEffect(() => {
     if (!containerRef.current) return;
 
     try {
-      // 创建副图
       const chart = createChart(containerRef.current, {
         width: containerRef.current.clientWidth,
         height: containerRef.current.clientHeight,
@@ -32,6 +33,11 @@ export function useSubChart(mainChartRef?: React.RefObject<IChartApi | null>) {
           timeVisible: true,
           secondsVisible: false,
           borderColor: '#1f2937',
+          rightOffset: 12, // 与主图保持一致的右侧偏移
+          barSpacing: 6,    // 与主图保持一致的柱间距
+          fixLeftEdge: false,
+          fixRightEdge: false,
+          lockVisibleTimeRangeOnResize: true, // 锁定可见范围，防止自动调整
         },
         rightPriceScale: {
           borderColor: '#1f2937',
@@ -43,6 +49,7 @@ export function useSubChart(mainChartRef?: React.RefObject<IChartApi | null>) {
       });
 
       chartRef.current = chart;
+      setIsReady(true);
 
       // 响应式处理
       const handleResize = () => {
@@ -56,57 +63,88 @@ export function useSubChart(mainChartRef?: React.RefObject<IChartApi | null>) {
 
       window.addEventListener('resize', handleResize);
 
-      // 时间轴同步逻辑
-      const mainChart = mainChartRef?.current;
-
-      if (mainChart) {
-        // 主图时间范围变化 → 同步副图
-        const syncFromMain = () => {
-          const mainTimeScale = mainChart.timeScale();
-          const subTimeScale = chart.timeScale();
-          const mainRange = mainTimeScale.getVisibleLogicalRange();
-
-          if (mainRange) {
-            subTimeScale.setVisibleLogicalRange(mainRange);
-          }
-        };
-
-        mainChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromMain);
-
-        // 副图时间范围变化 → 同步主图
-        const syncFromSub = () => {
-          const subTimeScale = chart.timeScale();
-          const mainTimeScale = mainChart.timeScale();
-          const subRange = subTimeScale.getVisibleLogicalRange();
-
-          if (subRange) {
-            mainTimeScale.setVisibleLogicalRange(subRange);
-          }
-        };
-
-        chart.timeScale().subscribeVisibleLogicalRangeChange(syncFromSub);
-
-        // 初始同步
-        syncFromMain();
-
-        // 清理
-        return () => {
-          window.removeEventListener('resize', handleResize);
-          mainChart.timeScale().unsubscribeVisibleLogicalRangeChange(syncFromMain);
-          chart.timeScale().unsubscribeVisibleLogicalRangeChange(syncFromSub);
-          chart.remove();
-        };
-      }
-
-      // 无主图时的清理
       return () => {
         window.removeEventListener('resize', handleResize);
         chart.remove();
+        chartRef.current = null;
+        setIsReady(false);
       };
     } catch (error) {
       console.error('Sub chart initialization error:', error);
     }
-  }, [mainChartRef]);
+  }, []);
+
+  // 时间轴同步：等待主图和副图都准备好
+  useEffect(() => {
+    if (!isReady || !mainChartRef?.current || !chartRef.current) {
+      return;
+    }
+
+    const mainChart = mainChartRef.current;
+    const subChart = chartRef.current;
+
+    console.log('Setting up time scale sync...');
+
+    // 标志位：防止循环触发
+    let isSyncing = false;
+
+    // 主图时间范围变化 → 同步副图
+    const syncFromMain = () => {
+      if (isSyncing) return;
+
+      try {
+        isSyncing = true;
+        const mainTimeScale = mainChart.timeScale();
+        const subTimeScale = subChart.timeScale();
+        const mainRange = mainTimeScale.getVisibleLogicalRange();
+
+        if (mainRange) {
+          subTimeScale.setVisibleLogicalRange(mainRange);
+          console.log('Synced sub chart from main:', mainRange);
+        }
+      } finally {
+        setTimeout(() => { isSyncing = false; }, 0);
+      }
+    };
+
+    // 副图时间范围变化 → 同步主图
+    const syncFromSub = () => {
+      if (isSyncing) return;
+
+      try {
+        isSyncing = true;
+        const subTimeScale = subChart.timeScale();
+        const mainTimeScale = mainChart.timeScale();
+        const subRange = subTimeScale.getVisibleLogicalRange();
+
+        if (subRange) {
+          mainTimeScale.setVisibleLogicalRange(subRange);
+          console.log('Synced main chart from sub:', subRange);
+        }
+      } finally {
+        setTimeout(() => { isSyncing = false; }, 0);
+      }
+    };
+
+    mainChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromMain);
+    subChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromSub);
+
+    // 初始同步 - 多次尝试，确保数据加载后也能同步
+    const syncMultipleTimes = () => {
+      syncFromMain();
+      setTimeout(() => syncFromMain(), 100);
+      setTimeout(() => syncFromMain(), 500);
+      setTimeout(() => syncFromMain(), 1000);
+    };
+
+    syncMultipleTimes();
+
+    return () => {
+      mainChart.timeScale().unsubscribeVisibleLogicalRangeChange(syncFromMain);
+      subChart.timeScale().unsubscribeVisibleLogicalRangeChange(syncFromSub);
+      console.log('Time scale sync cleaned up');
+    };
+  }, [isReady, mainChartRef]);
 
   return { containerRef, chartRef };
 }

@@ -16,6 +16,12 @@ export function calculateMACD(
   slowPeriod: number = 26,
   signalPeriod: number = 9
 ): MultiIndicatorValue[] {
+  console.log('[MACD Calculator] Input bars:', {
+    barsLength: bars.length,
+    firstBarTime: bars[0]?.time,
+    lastBarTime: bars[bars.length - 1]?.time,
+  });
+
   const result: MultiIndicatorValue[] = [];
 
   if (bars.length < slowPeriod) {

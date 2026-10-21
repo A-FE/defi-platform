@@ -1,12 +1,13 @@
 'use client';
 
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useChartInit } from './hooks/useChartInit';
 import { useKlineData } from './hooks/useKlineData';
 import { useIndicators } from './hooks/useIndicators';
-import { useSubChart } from './hooks/useSubChart';
 import ChartControls from './ChartControls';
 import { KlineInterval } from '@/types/market';
-import { useKlineStore } from '@/stores';
+import { useIndicatorStore } from '@/stores';
+import { convertIndicatorConfigsToParams } from '@/services/api/indicatorApi';
 
 interface KlineChartProps {
   symbol: string;
@@ -14,53 +15,68 @@ interface KlineChartProps {
 }
 
 /**
- * K线图主组件
+ * K线图主组件 V3 - 统一接口架构
  * 职责：组合各个子组件，协调数据流
- * 布局：主图（K线+主图指标） + 副图（RSI/MACD/KDJ/VOL）
+ * 架构：单 chart 动态多 pane
+ *  - Pane 0: K线 + 主图指标 (MA/EMA/BOLL) - 固定
+ *  - Pane 1-4: 副图指标 (RSI/MACD/KDJ/VOL) - 动态创建/移除
+ * 所有 pane 共享同一时间轴，天然对齐
+ *
+ * V3 核心改变（统一接口重构）：
+ *  - 统一使用 fetchKlines 获取 K 线 + 指标数据
+ *  - useKlineData 负责完整数据流（K 线 + 指标）
+ *  - useIndicators 只负责渲染（接收数据，不获取数据）
+ *  - 架构更清晰，代码更简洁
  */
 export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) {
-  // 主图初始化
+  // 主图初始化（只包含主 pane）
   const { containerRef, chartRef, seriesRef } = useChartInit();
 
-  // 副图初始化（传入主图引用以实现时间轴同步）
-  const { containerRef: subContainerRef, chartRef: subChartRef } = useSubChart(chartRef);
+  // 使用 state 管理 interval
+  const [interval, setInterval] = useState<KlineInterval>(defaultInterval);
 
-  // K线数据
-  const bars = useKlineStore((state) => state.bars);
+  // ✅ 获取当前启用的指标配置
+  const { getEnabledIndicators } = useIndicatorStore();
+  const enabledIndicators = useMemo(() => {
+    const configs = getEnabledIndicators();
+    return convertIndicatorConfigsToParams(configs.map(c => ({
+      type: c.type,
+      params: c.params,
+    })));
+  }, [getEnabledIndicators]);
 
-  // 指标管理（传入主图和副图实例）
-  const { updateRealtimeIndicators } = useIndicators(
-    chartRef,
-    seriesRef,
-    bars,
-    subChartRef
-  );
-
-  // K线数据管理（传入指标更新函数）
-  const { interval, setInterval, isLoading, isLoadingMore } = useKlineData(
+  // ✅ K 线数据管理（包括指标）
+  const {
+    interval: _interval,
+    setInterval: setKlineInterval,
+    isLoading,
+    isLoadingMore,
+    klineData  // ✅ 获取完整数据（K 线 + 指标）
+  } = useKlineData(
     symbol,
-    defaultInterval,
+    interval,
     chartRef,
     seriesRef,
-    updateRealtimeIndicators
+    enabledIndicators  // ✅ 传入指标配置
   );
+
+  // ✅ 指标渲染（只负责渲染，数据来自 useKlineData）
+  useIndicators(chartRef, seriesRef, klineData);
+
+  // 同步周期切换
+  const handleIntervalChange = (newInterval: KlineInterval) => {
+    setInterval(newInterval);
+    setKlineInterval(newInterval);
+  };
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 rounded-lg border border-gray-800 p-4">
       {/* 控制栏 */}
-      <ChartControls interval={interval} onIntervalChange={setInterval} />
+      <ChartControls interval={interval} onIntervalChange={handleIntervalChange} />
 
-      {/* 图表容器：主图 70% + 副图 30% */}
-      <div className="flex-1 flex flex-col gap-2 relative">
-        {/* 主图：K线 + 主图指标 (MA/EMA/BOLL) */}
-        <div className="flex-[7] relative min-h-0">
-          <div ref={containerRef} className="absolute inset-0" />
-        </div>
-
-        {/* 副图：RSI/MACD/KDJ/VOL */}
-        <div className="flex-[3] relative min-h-0 border-t border-gray-800">
-          <div ref={subContainerRef} className="absolute inset-0" />
-        </div>
+      {/* 图表容器：单个 chart，包含主副 pane */}
+      <div className="flex-1 relative">
+        <div ref={containerRef} className="absolute inset-0" />
 
         {/* 初始加载状态 */}
         {isLoading && (

@@ -1,12 +1,14 @@
-import { KlineBar, KlineInterval } from './market';
+import { KlineInterval } from './market';
 import { DepthItem, TickerData, AssetData } from './market';
 import { WalletInfo } from './solana';
+import { IndicatorKlineItem } from './api';
+import { IndicatorType } from './indicator';
 
 /**
- * K线缓存项
+ * K线缓存项（统一使用 IndicatorKlineItem）
  */
 export interface KlineCacheItem {
-  bars: KlineBar[];
+  bars: IndicatorKlineItem[];
   timestamp: number;
 }
 
@@ -14,18 +16,31 @@ export interface KlineCacheItem {
  * K线 Store 状态
  */
 export interface KlineState {
-  bars: KlineBar[];
+  bars: IndicatorKlineItem[];
   interval: KlineInterval;
   cache: Record<string, KlineCacheItem>;
   isLoading: boolean;
 
-  // Actions
-  fetchHistory: (symbol: string, interval: KlineInterval, limit: number, before?: number) => Promise<KlineBar[]>;
-  subscribeBars: (symbol: string, interval: KlineInterval, lastBar: KlineBar, callback: (bar: KlineBar) => void) => () => void;
+  // Actions - 统一的数据获取方法
+  fetchKlines: (
+    symbol: string,
+    interval: KlineInterval,
+    from: number,
+    to: number,
+    indicators?: Array<{ name: string; params: number[] }>
+  ) => Promise<IndicatorKlineItem[]>;
+
+  subscribeBars: (
+    symbol: string,
+    interval: KlineInterval,
+    lastBar: IndicatorKlineItem,
+    callback: (bar: IndicatorKlineItem) => void
+  ) => () => void;
+
   unsubscribeBars: (symbol: string, interval: KlineInterval) => void;
-  updateBar: (symbol: string, bar: KlineBar) => void;
-  getFromCache: (symbol: string, interval: KlineInterval) => KlineBar[] | null;
-  saveToCache: (symbol: string, interval: KlineInterval, bars: KlineBar[]) => void;
+  updateBar: (symbol: string, bar: IndicatorKlineItem) => void;
+  getFromCache: (symbol: string, interval: KlineInterval) => IndicatorKlineItem[] | null;
+  saveToCache: (symbol: string, interval: KlineInterval, bars: IndicatorKlineItem[]) => void;
 }
 
 /**

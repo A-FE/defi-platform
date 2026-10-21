@@ -1,44 +1,42 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useIndicatorStore } from '@/stores';
-import { IndicatorManager } from '@/services/indicators';
-import { KlineBar } from '@/types/market';
+import { IndicatorManager } from '@/services/indicators/IndicatorManager';
+import { IndicatorKlineItem } from '@/types/api';
 
 /**
- * 指标管理 Hook
+ * 指标管理 Hook V3 - 纯渲染版本
  * 职责：
- *  - 监听指标配置变化
- *  - 调用 IndicatorManager 渲染指标
- *  - 处理实时更新
- *  - 支持主图和副图
+ *  - 监听指标配置变化和数据变化
+ *  - 使用 IndicatorManager 渲染指标（纯渲染，无计算）
+ *  - 动态管理 pane：启用时创建，禁用时移除
+ *
+ * V3 改变（统一接口重构）：
+ *  - 不再负责数据获取（数据由 useKlineData 管理）
+ *  - 只接收 klineData 参数，监听变化自动渲染
+ *  - 大幅简化逻辑，从 ~180 行 → ~80 行
  */
 export function useIndicators(
   chartRef: React.RefObject<IChartApi | null>,
   seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>,
-  bars: KlineBar[],
-  subChartRef?: React.RefObject<IChartApi | null>
+  klineData: IndicatorKlineItem[]  // ✅ 从外部接收完整数据
 ) {
   const managerRef = useRef<IndicatorManager | null>(null);
-  const { configs } = useIndicatorStore();
+  const { configs, getEnabledIndicators } = useIndicatorStore();
 
   // 使用 useMemo 来避免不必要的重新计算
   const enabledIndicators = useMemo(() => {
-    return Object.values(configs).filter((c) => c.enabled);
-  }, [configs]);
+    return getEnabledIndicators();
+  }, [configs, getEnabledIndicators]);
 
   // 初始化 IndicatorManager
   useEffect(() => {
     if (chartRef.current && seriesRef.current && !managerRef.current) {
       managerRef.current = new IndicatorManager(
         chartRef.current,
-        seriesRef.current,
-        subChartRef?.current || undefined
+        seriesRef.current
       );
-    }
-
-    // 副图初始化后，更新 IndicatorManager
-    if (managerRef.current && subChartRef?.current) {
-      managerRef.current.setSubChart(subChartRef.current);
+      console.log('[useIndicators] IndicatorManager initialized');
     }
 
     return () => {
@@ -47,29 +45,30 @@ export function useIndicators(
         managerRef.current = null;
       }
     };
-  }, [chartRef, seriesRef, subChartRef]);
+  }, [chartRef, seriesRef]);
 
-  // 监听指标配置变化，重新渲染
+  // ✅ 监听数据变化，自动渲染指标
   useEffect(() => {
-    if (!managerRef.current || bars.length === 0) {
+    if (!managerRef.current || klineData.length === 0) {
       return;
     }
 
-    // 清空旧指标
-    managerRef.current.clear();
+    const enabledConfigs = getEnabledIndicators();
 
-    // 添加新指标
-    enabledIndicators.forEach((config) => {
-      managerRef.current?.addIndicator(config, bars);
-    });
-  }, [enabledIndicators, bars]);
-
-  // 实时更新指标（在 useKlineData 的订阅回调中调用）
-  const updateRealtimeIndicators = (bar: KlineBar, allBars: KlineBar[]) => {
-    if (managerRef.current && enabledIndicators.length > 0) {
-      managerRef.current.updateRealtimeBar(bar, enabledIndicators, allBars);
+    if (enabledConfigs.length === 0) {
+      console.log('[useIndicators] No enabled indicators, clearing');
+      managerRef.current.clear();
+      return;
     }
-  };
 
-  return { updateRealtimeIndicators };
+    console.log('[useIndicators] Rendering indicators:', {
+      barsCount: klineData.length,
+      indicators: enabledConfigs.map(c => c.type),
+    });
+
+    managerRef.current.renderIndicators(klineData, enabledConfigs);
+  }, [klineData, enabledIndicators, getEnabledIndicators]);
+
+  // ✅ 不再返回任何方法（纯被动渲染）
+  return {};
 }

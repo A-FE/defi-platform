@@ -1,22 +1,46 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { ISeriesApi, IChartApi, LogicalRange } from 'lightweight-charts';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { ISeriesApi, IChartApi } from 'lightweight-charts';
 import { useKlineStore } from '@/stores';
 import { KlineInterval } from '@/types/market';
+import { IndicatorKlineItem } from '@/types/api';
 
 /**
- * K线数据管理 Hook
+ * 辅助函数：获取 K 线周期对应的秒数
+ */
+function getIntervalSeconds(interval: KlineInterval): number {
+  const map: Record<KlineInterval, number> = {
+    '1m': 60,
+    '5m': 300,
+    '15m': 900,
+    '1h': 3600,
+    '4h': 14400,
+    '1d': 86400,
+    '1w': 604800,
+  };
+  return map[interval] || 3600;
+}
+
+/**
+ * K线数据管理 Hook V3
  * 职责：周期切换、数据加载、实时订阅、无限左滑加载历史数据
+ *
+ * V3 改变（统一接口重构）：
+ * - 统一使用 fetchKlines 获取数据（K 线 + 指标）
+ * - 接收 enabledIndicators 参数，自动获取指标数据
+ * - 返回完整的 klineData，供外部使用
+ * - K 线收盘时自动刷新指标
  */
 export function useKlineData(
   symbol: string,
   defaultInterval: KlineInterval,
   chartRef: React.RefObject<IChartApi | null>,
   seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>,
-  updateRealtimeIndicators?: (bar: any, allBars: any[]) => void
+  enabledIndicators: Array<{ name: string; params: number[] }> = []
 ) {
   const [interval, setIntervalState] = useState<KlineInterval>(defaultInterval);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [klineData, setKlineData] = useState<IndicatorKlineItem[]>([]);
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
 
   // 追踪已加载的数据范围
@@ -24,7 +48,7 @@ export function useKlineData(
   const hasMoreHistoryRef = useRef<boolean>(true);
   const isLoadingMoreRef = useRef<boolean>(false);
 
-  const { fetchHistory, subscribeBars, unsubscribeBars, getFromCache } = useKlineStore();
+  const { fetchKlines, subscribeBars, unsubscribeBars, getFromCache } = useKlineStore();
 
   // 加载更多历史数据（无限左滑）
   const loadMoreHistory = useCallback(
@@ -62,16 +86,21 @@ export function useKlineData(
           return;
         }
 
-        const targetPrice = oldestCurrentBar.open; // 新历史数据的最后一根应该close到这个价格
+        const targetPrice = oldestCurrentBar.open;
 
         console.log(`[loadMoreHistory] 当前最早K线: time=${oldestCurrentBar.time}, open=${oldestCurrentBar.open}`);
 
-        // 获取更早的历史数据（从最旧时间戳之前加载 50 根）
-        const olderBars = await fetchHistory(
+        // ✅ 使用统一的 fetchKlines 获取更早的历史数据
+        const olderTime = oldestTimeRef.current;
+        const from = olderTime - (50 * getIntervalSeconds(currentInterval));
+        const to = olderTime - 1;
+
+        const olderBars = await fetchKlines(
           symbol,
           currentInterval,
-          50,
-          oldestTimeRef.current - 1 // before 参数，获取这个时间之前的数据
+          from,
+          to,
+          enabledIndicators  // ✅ 传入指标配置
         );
 
         if (olderBars && olderBars.length > 0) {
@@ -79,49 +108,48 @@ export function useKlineData(
           oldestTimeRef.current = olderBars[0].time;
 
           // 调整最后一根历史K线，使其 close 与当前最早K线的 open 相等
-          if (olderBars.length > 0) {
-            const lastOlderBar = olderBars[olderBars.length - 1];
+          const lastOlderBar = olderBars[olderBars.length - 1];
+          const priceAdjustment = targetPrice / lastOlderBar.close;
 
-            // 计算价格调整比例
-            const priceAdjustment = targetPrice / lastOlderBar.close;
+          console.log(`[loadMoreHistory] 价格调整: ${lastOlderBar.close} -> ${targetPrice}, 比例: ${priceAdjustment}`);
 
-            console.log(`[loadMoreHistory] 价格调整: ${lastOlderBar.close} -> ${targetPrice}, 比例: ${priceAdjustment}`);
+          // 调整所有历史K线的价格，保持相对关系
+          const adjustedOlderBars = olderBars.map((bar) => ({
+            ...bar,
+            open: bar.open * priceAdjustment,
+            high: bar.high * priceAdjustment,
+            low: bar.low * priceAdjustment,
+            close: bar.close * priceAdjustment,
+          }));
 
-            // 调整所有历史K线的价格，保持相对关系
-            const adjustedOlderBars = olderBars.map((bar) => ({
-              ...bar,
-              open: bar.open * priceAdjustment,
-              high: bar.high * priceAdjustment,
-              low: bar.low * priceAdjustment,
-              close: bar.close * priceAdjustment,
-            }));
+          // 合并：调整后的旧数据 + 当前数据
+          const allBars = [...adjustedOlderBars, ...currentData];
 
-            // 合并：调整后的旧数据 + 当前数据
-            const allBars = [...adjustedOlderBars, ...currentData];
+          // 转换为 lightweight-charts 格式
+          const formattedData = allBars.map((bar: any) => {
+            const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
-            // 转换为 lightweight-charts 格式
-            const formattedData = allBars.map((bar: any) => {
-              const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
+            if (isNaN(time)) {
+              console.error('Invalid bar time:', bar);
+              return null;
+            }
 
-              if (isNaN(time)) {
-                console.error('Invalid bar time:', bar);
-                return null;
-              }
+            return {
+              time: time as any,
+              open: Number(bar.open.toFixed(2)),
+              high: Number(bar.high.toFixed(2)),
+              low: Number(bar.low.toFixed(2)),
+              close: Number(bar.close.toFixed(2)),
+            };
+          }).filter(Boolean);
 
-              return {
-                time: time as any,
-                open: Number(bar.open.toFixed(2)),
-                high: Number(bar.high.toFixed(2)),
-                low: Number(bar.low.toFixed(2)),
-                close: Number(bar.close.toFixed(2)),
-              };
-            }).filter(Boolean);
+          // 使用 setData() 重新设置所有数据
+          seriesRef.current.setData(formattedData as any);
 
-            // 使用 setData() 重新设置所有数据
-            seriesRef.current.setData(formattedData as any);
+          // ✅ 更新完整数据（包括指标）
+          setKlineData(prev => [...adjustedOlderBars, ...prev]);
 
-            console.log(`[loadMoreHistory] 加载了 ${olderBars.length} 根历史K线，最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
-          }
+          console.log(`[loadMoreHistory] 加载了 ${olderBars.length} 根历史K线，最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
         } else {
           // 没有更多历史数据
           hasMoreHistoryRef.current = false;
@@ -134,8 +162,24 @@ export function useKlineData(
         setIsLoadingMore(false);
       }
     },
-    [symbol, fetchHistory, seriesRef]
+    [symbol, fetchKlines, seriesRef, enabledIndicators]
   );
+
+  // ✅ K 线收盘后重新加载（带指标）
+  const reloadWithIndicators = useCallback(async () => {
+    console.log('[useKlineData] Bar closed, reloading with indicators');
+
+    const now = Math.floor(Date.now() / 1000);
+    const from = now - (100 * getIntervalSeconds(interval));
+
+    try {
+      const bars = await fetchKlines(symbol, interval, from, now, enabledIndicators);
+      setKlineData(bars);
+      console.log('[useKlineData] Indicators reloaded:', bars.length);
+    } catch (error) {
+      console.error('[useKlineData] Failed to reload indicators:', error);
+    }
+  }, [symbol, interval, enabledIndicators, fetchKlines]);
 
   // 加载 K线数据
   const loadKlineData = useCallback(
@@ -149,90 +193,100 @@ export function useKlineData(
       hasMoreHistoryRef.current = true;
 
       try {
-        // 1. 尝试从缓存读取
-        let bars = getFromCache(symbol, newInterval);
+        // ✅ 统一使用 fetchKlines（带指标配置）
+        const now = Math.floor(Date.now() / 1000);
+        const from = now - (100 * getIntervalSeconds(newInterval));
 
-        // 2. 无缓存则 HTTP 拉取（加载 100 根 K 线足够显示）
-        if (!bars || bars.length === 0) {
-          bars = await fetchHistory(symbol, newInterval, 100);
+        const bars = await fetchKlines(
+          symbol,
+          newInterval,
+          from,
+          now,
+          enabledIndicators  // ✅ 传入指标配置
+        );
+
+        if (bars.length === 0) {
+          console.warn('[loadKlineData] No bars received');
+          setIsLoading(false);
+          return;
         }
 
-        // 3. setData() 设置数据
-        if (bars.length > 0) {
-          // 记录最旧的时间戳
-          oldestTimeRef.current = bars[0].time;
+        // ✅ 保存完整数据（包括指标）
+        setKlineData(bars);
 
-          const data = bars.map((bar) => {
-            // 确保 time 是 number 类型（秒级 UTC 时间戳）
-            const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
+        // 记录最旧的时间戳
+        oldestTimeRef.current = bars[0].time;
 
-            if (isNaN(time)) {
-              console.error('Invalid bar time:', bar);
-              throw new Error(`Invalid time value: ${bar.time}`);
-            }
+        // 渲染 K 线到图表（只渲染 OHLC，不渲染指标）
+        const data = bars.map((bar) => {
+          const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
-            return {
-              time: time as any, // lightweight-charts 需要 UTCTimestamp 类型
-              open: bar.open,
-              high: bar.high,
-              low: bar.low,
-              close: bar.close,
-            };
-          });
+          if (isNaN(time)) {
+            console.error('Invalid bar time:', bar);
+            throw new Error(`Invalid time value: ${bar.time}`);
+          }
 
-          seriesRef.current.setData(data);
+          return {
+            time: time as any,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+          };
+        });
 
-          console.log(`[loadKlineData] 初始加载 ${bars.length} 根K线，最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
+        seriesRef.current.setData(data);
 
-          // 设置可视范围（显示最近 50 根 K 线，其余可滚动查看）
-          setTimeout(() => {
-            const timeScale = chartRef.current?.timeScale();
-            if (timeScale && data.length > 50) {
-              const visibleStart = data[data.length - 50].time;
-              const visibleEnd = data[data.length - 1].time;
-              timeScale.setVisibleRange({
-                from: visibleStart as any,
-                to: visibleEnd as any,
-              });
-            } else {
-              timeScale?.fitContent();
-            }
-          }, 0);
-        }
+        console.log(`[loadKlineData] 初始加载 ${bars.length} 根K线，最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
 
-        // 4. 订阅新周期 WebSocket（传入最后一根 K 线的信息）
+        // 设置可视范围（显示最近 30 根 K 线）
+        setTimeout(() => {
+          const timeScale = chartRef.current?.timeScale();
+          if (timeScale && data.length > 30) {
+            const visibleStart = data[data.length - 30].time;
+            const visibleEnd = data[data.length - 1].time;
+            timeScale.setVisibleRange({
+              from: visibleStart as any,
+              to: visibleEnd as any,
+            });
+            console.log('[useKlineData] Visible range set to last 30 bars');
+          } else {
+            timeScale?.fitContent();
+          }
+        }, 100);
+
+        // 订阅新周期 WebSocket（传入最后一根 K 线的信息）
         const lastBar = bars[bars.length - 1];
         const unsubscribe = subscribeBars(symbol, newInterval, lastBar, (bar) => {
-          if (seriesRef.current) {
-            // 确保 time 是 number 类型（秒级 UTC 时间戳）
-            const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
+          if (!seriesRef.current) return;
 
-            if (isNaN(time)) {
-              console.error('Invalid real-time bar:', bar);
-              return; // 跳过无效数据
-            }
+          // 确保 time 是 number 类型
+          const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
-            // 实时更新只用 update()，不频繁 setData()
-            seriesRef.current.update({
-              time: time as any, // lightweight-charts 需要 UTCTimestamp 类型
-              open: bar.open,
-              high: bar.high,
-              low: bar.low,
-              close: bar.close,
-            });
+          if (isNaN(time)) {
+            console.error('Invalid real-time bar:', bar);
+            return;
+          }
 
-            // 更新指标
-            if (updateRealtimeIndicators) {
-              const currentData = seriesRef.current.data();
-              updateRealtimeIndicators(bar, currentData as any);
-            }
+          // 实时更新 K 线
+          seriesRef.current.update({
+            time: time as any,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+          });
+
+          // ✅ K 线收盘时触发指标刷新
+          if (bar.isClosed) {
+            console.log('[useKlineData] Bar closed, triggering indicator reload');
+            reloadWithIndicators();
           }
         });
 
         // 保存取消订阅函数到 ref
         unsubscribeRef.current = unsubscribe;
 
-        // 返回取消订阅函数
         return unsubscribe;
       } catch (error) {
         console.error('Load K-line data error:', error);
@@ -240,89 +294,54 @@ export function useKlineData(
         setIsLoading(false);
       }
     },
-    [symbol, fetchHistory, subscribeBars, getFromCache, seriesRef, chartRef]
+    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef, enabledIndicators, reloadWithIndicators]
   );
 
-  // 切换周期
-  const setInterval = useCallback(
-    async (newInterval: KlineInterval) => {
-      if (interval === newInterval) return;
-
-      // 1. 取消旧订阅
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = undefined;
-      }
-
-      // 2. 清空图表数据（避免新旧数据冲突）
-      if (seriesRef.current) {
-        seriesRef.current.setData([]);
-      }
-
-      setIntervalState(newInterval);
-
-      // 3. 加载新周期数据
-      await loadKlineData(newInterval);
-    },
-    [interval, loadKlineData, seriesRef]
-  );
-
-  // 初始加载
+  // 监听周期和指标配置变化
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    console.log('[useKlineData] Interval or indicators changed, reloading');
+    loadKlineData(interval);
 
-    const cleanup = () => {
-      if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = undefined;
-      }
-      // 同时清理 ref 中的订阅
+    // 清理：取消订阅
+    return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
         unsubscribeRef.current = undefined;
       }
     };
+  }, [interval, enabledIndicators, loadKlineData]);
 
-    loadKlineData(interval).then((unsub) => {
-      unsubscribe = unsub;
-    });
-
-    return cleanup;
-  }, [symbol, interval, loadKlineData]);
-
-  // 监听可视范围变化，实现无限左滑加载
+  // 监听可视范围变化，触发无限加载
   useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
+    if (!chartRef.current) return;
 
+    const chart = chartRef.current;
     const timeScale = chart.timeScale();
 
-    // 监听可视范围变化
-    const handleVisibleLogicalRangeChange = (newRange: LogicalRange | null) => {
-      if (!newRange) return;
+    const handleVisibleRangeChange = () => {
+      const logicalRange = timeScale.getVisibleLogicalRange();
+      if (!logicalRange) return;
 
-      // 当用户滚动到接近最左边时（距离边缘 10 个bar），加载更多历史数据
-      const barsToLoadThreshold = 10;
-
-      if (newRange.from < barsToLoadThreshold) {
-        console.log('[visibleRangeChange] 接近左边界，触发加载历史数据');
+      // 当用户滚动到左侧边界附近时，加载更多历史数据
+      if (logicalRange.from < 5) {
         loadMoreHistory(interval);
       }
     };
 
-    // 订阅可视逻辑范围变化
-    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
+    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
 
-    // 清理订阅
     return () => {
-      timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
+      timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
   }, [chartRef, interval, loadMoreHistory]);
 
   return {
     interval,
-    setInterval,
+    setInterval: (newInterval: KlineInterval) => {
+      setIntervalState(newInterval);
+    },
     isLoading,
     isLoadingMore,
+    klineData,  // ✅ 返回完整数据（包括指标）
   };
 }
