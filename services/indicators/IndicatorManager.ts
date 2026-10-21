@@ -627,8 +627,9 @@ export class IndicatorManager {
         const maSeries = this.chart.addSeries(LineSeries, {
           color: config.colors[index] || '#2962FF',
           lineWidth: 2,
-          title: maKey.toUpperCase(),
+          // title: maKey.toUpperCase(),
           priceLineVisible: false,
+          lastValueVisible: false,
         }, paneIndex);
         maSeries.setData(maData);
         series.push(maSeries);

@@ -231,10 +231,70 @@ export function useKlineChart(
   // ========== 获取当前启用的指标 ==========
   const enabledIndicators = useCallback(() => {
     const configs = getEnabledIndicators();
-    return configs.map(c => ({
-      name: c.type.toLowerCase(),
-      params: Object.values(c.params),
-    }));
+
+    const result = configs.map(c => {
+      // ✅ 根据指标类型正确转换参数
+      let params: number[];
+
+      switch (c.type) {
+        case 'MA':
+        case 'EMA':
+          // MA/EMA: params 是对象 {period1: 5, period2: 10, ...}
+          // 需要转换为数组 [5, 10, ...]
+          params = Object.values(c.params);
+          break;
+
+        case 'MACD':
+          // MACD: params 是 {fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+          // 需要按顺序转换为 [12, 26, 9]
+          params = [
+            c.params.fastPeriod,
+            c.params.slowPeriod,
+            c.params.signalPeriod,
+          ];
+          break;
+
+        case 'KDJ':
+          // KDJ: params 是 {period: 9, kPeriod: 3, dPeriod: 3}
+          // 需要按顺序转换为 [9, 3, 3]
+          params = [
+            c.params.period,
+            c.params.kPeriod,
+            c.params.dPeriod,
+          ];
+          break;
+
+        case 'RSI':
+          // RSI: params 是 {period: 14}
+          // 需要转换为 [14]
+          params = [c.params.period];
+          break;
+
+        case 'BOLL':
+          // BOLL: params 是 {period: 20, stdDev: 2}
+          // 需要按顺序转换为 [20, 2]
+          params = [c.params.period, c.params.stdDev];
+          break;
+
+        case 'VOL':
+          // VOL: 无参数
+          params = [];
+          break;
+
+        default:
+          params = Object.values(c.params);
+      }
+
+      return {
+        name: c.type.toLowerCase(),
+        params,
+      };
+    });
+
+    // ✅ 添加调试日志
+    console.log('[enabledIndicators] 转换后的指标配置:', result);
+
+    return result;
   }, [getEnabledIndicators]);
 
   // ========== 加载更多历史数据（无限左滑）==========

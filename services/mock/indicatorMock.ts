@@ -16,11 +16,11 @@ export function mockCalculateIndicators(
   bars: IndicatorKlineItem[],  // ✅ 改为统一类型
   params: IndicatorQueryParams
 ): IndicatorKlineItem[] {
-  // console.log('[mockCalculateIndicators] Input:', {
-  //   barsCount: bars.length,
-  //   indicatorsCount: params.indicators.length,
-  //   indicators: params.indicators.map(i => `${i.name}(${i.params.join(',')})`),
-  // });
+  console.log('[mockCalculateIndicators] Input:', {
+    barsCount: bars.length,
+    indicatorsCount: params.indicators.length,
+    indicators: params.indicators.map(i => `${i.name}(${i.params.join(',')})`),
+  });
 
   // 初始化结果：复制 K 线数据，添加空的 indicators 字段
   const result: IndicatorKlineItem[] = bars.map(bar => ({
@@ -120,22 +120,32 @@ export function mockCalculateIndicators(
 
         case 'ma': {
           const periods = indicator.params;
-          const maData = calculators.calculateMultiMA(simpleBars, periods);
+          console.log('[mockCalculateIndicators] MA params:', periods);
 
-          // maData 结构：{ ma5: [{time, value}], ma10: [...] }
+          const maData = calculators.calculateMultiMA(simpleBars, periods);
+          console.log('[mockCalculateIndicators] MA data keys:', Object.keys(maData));
+
+          // maData 结构：{ MA5: [{time, value}], MA10: [...] }
+          // ✅ 转换为小写键：ma5, ma10, ...
           Object.entries(maData).forEach(([key, data]) => {
+            const lowercaseKey = key.toLowerCase(); // MA5 -> ma5
+            console.log(`[mockCalculateIndicators] Processing ${key} -> ${lowercaseKey}, points: ${data.length}`);
             data.forEach((point: any) => {
               const matchedBar = result.find(r => r.time === point.time);
               if (matchedBar) {
                 if (!matchedBar.indicators.ma) {
                   matchedBar.indicators.ma = {};
                 }
-                matchedBar.indicators.ma[key] = point.value;
+                matchedBar.indicators.ma[lowercaseKey] = point.value;
               }
             });
           });
 
           console.log(`[mockCalculateIndicators] MA calculated: ${periods.length} lines`);
+          console.log('[mockCalculateIndicators] Sample result:', result.slice(-3).map(r => ({
+            time: r.time,
+            ma: r.indicators.ma,
+          })));
           break;
         }
 
@@ -143,15 +153,17 @@ export function mockCalculateIndicators(
           const periods = indicator.params;
           const emaData = calculators.calculateMultiEMA(simpleBars, periods);
 
-          // emaData 结构：{ ema5: [{time, value}], ema10: [...] }
+          // emaData 结构：{ EMA5: [{time, value}], EMA10: [...] }
+          // ✅ 转换为小写键：ema5, ema10, ...
           Object.entries(emaData).forEach(([key, data]) => {
+            const lowercaseKey = key.toLowerCase(); // EMA5 -> ema5
             data.forEach((point: any) => {
               const matchedBar = result.find(r => r.time === point.time);
               if (matchedBar) {
                 if (!matchedBar.indicators.ema) {
                   matchedBar.indicators.ema = {};
                 }
-                matchedBar.indicators.ema[key] = point.value;
+                matchedBar.indicators.ema[lowercaseKey] = point.value;
               }
             });
           });

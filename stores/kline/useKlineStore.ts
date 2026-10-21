@@ -31,7 +31,7 @@ export const useKlineStore = create<KlineState>()(
   persist(
     (set, get) => ({
       bars: [],
-      interval: '1h',
+      interval: '15m',
       cache: {},
       isLoading: false,
 
