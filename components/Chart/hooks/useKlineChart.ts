@@ -5,6 +5,7 @@ import { useKlineStore, useIndicatorStore } from '@/stores';
 import { KlineInterval } from '@/types/market';
 import { IndicatorKlineItem } from '@/types/api';
 import { IndicatorManager } from '@/services/indicators/IndicatorManager';
+import { mockCalculateIndicators } from '@/services/mock/indicatorMock';
 
 /**
  * 辅助函数：获取 K 线周期对应的秒数
@@ -371,8 +372,6 @@ export function useKlineChart(
 
           if (indicators.length > 0) {
             try {
-              const { mockCalculateIndicators } = await import('@/services/mock/indicatorMock');
-
               const currentCompleteData = klineData;
               const allBarsForCalculation = [...adjustedOlderBars, ...currentCompleteData];
 
@@ -579,15 +578,98 @@ export function useKlineChart(
 
   // ========== 渲染指标 ==========
   useEffect(() => {
+    console.log('[useKlineChart] 🚀 useEffect 触发:', {
+      hasManager: !!managerRef.current,
+      hasChart: !!chartRef.current,
+      dataLength: klineData.length,
+      enabledCount: getEnabledIndicators().length,
+      timestamp: Date.now(),
+    });
+
     if (!managerRef.current || !chartRef.current || klineData.length === 0) {
+      console.log('[useKlineChart] ⚠️ 条件不满足，跳过');
       return;
     }
 
     const enabledConfigs = getEnabledIndicators();
 
     if (enabledConfigs.length === 0) {
+      console.log('[useKlineChart] 📭 无启用指标，清空');
       managerRef.current.clear();
       return;
+    }
+
+    // ✅ 检查当前数据是否包含所需的指标数据
+    const needsRecalculation = enabledConfigs.some(config => {
+      // 检查数据中是否有该指标
+      const hasIndicatorData = klineData.some(bar => {
+        switch (config.type) {
+          case 'MACD':
+            return bar.indicators.macd !== undefined;
+          case 'RSI':
+            return bar.indicators.rsi !== undefined;
+          case 'KDJ':
+            return bar.indicators.kdj !== undefined;
+          case 'BOLL':
+            return bar.indicators.boll !== undefined;
+          case 'MA':
+            return bar.indicators.ma !== undefined;
+          case 'EMA':
+            return bar.indicators.ema !== undefined;
+          case 'VOL':
+            return bar.indicators.vol !== undefined;
+          default:
+            return false;
+        }
+      });
+      return !hasIndicatorData;
+    });
+
+    // ✅ 如果需要重新计算指标
+    if (needsRecalculation) {
+      const t0 = performance.now();
+      console.log('[useKlineChart] 🔍 指标数据缺失，开始重新计算:', {
+        enabledIndicators: enabledConfigs.map(c => c.type),
+        dataLength: klineData.length,
+      });
+
+      try {
+        const t1 = performance.now();
+        const indicators = enabledIndicators();
+
+        if (indicators.length === 0) return;
+
+        const t2 = performance.now();
+        console.log(`[useKlineChart] ⏱️ 准备指标配置: ${(t2 - t1).toFixed(2)}ms`);
+
+        // 重新计算所有指标
+        const barsWithIndicators = mockCalculateIndicators(klineData, {
+          symbol,
+          resolution: interval,
+          from: klineData[0]?.time || 0,
+          to: klineData[klineData.length - 1]?.time || 0,
+          indicators,
+        });
+
+        const t3 = performance.now();
+        console.log(`[useKlineChart] ⏱️ 指标计算: ${(t3 - t2).toFixed(2)}ms`);
+
+        // ✅ 关键优化：直接渲染，不触发第二次 useEffect
+        managerRef.current.updateIndicators(barsWithIndicators, enabledConfigs);
+
+        const t4 = performance.now();
+        console.log(`[useKlineChart] ⏱️ 渲染: ${(t4 - t3).toFixed(2)}ms`);
+        console.log(`[useKlineChart] ✅ 总耗时: ${(t4 - t0).toFixed(2)}ms`);
+
+        // ✅ 异步更新状态（不阻塞渲染）
+        requestAnimationFrame(() => {
+          setKlineData(barsWithIndicators);
+        });
+
+        return; // 已完成渲染，跳过后面的逻辑
+      } catch (error) {
+        console.error('[useKlineChart] 指标重新计算失败:', error);
+      }
     }
 
     console.log('[useKlineChart] 更新指标:', {
@@ -598,7 +680,7 @@ export function useKlineChart(
 
     // ✅ 使用增量更新（智能判断是否需要重建）
     managerRef.current.updateIndicators(klineData, enabledConfigs);
-  }, [klineData, getEnabledIndicators]);
+  }, [klineData, getEnabledIndicators, symbol, interval, enabledIndicators]);
 
   // ========== 监听周期变化 ==========
   useEffect(() => {

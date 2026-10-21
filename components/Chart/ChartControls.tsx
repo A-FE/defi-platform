@@ -69,7 +69,15 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
             return (
               <button
                 key={type}
-                onClick={() => toggleIndicator(type)}
+                onClick={() => {
+                  const t0 = performance.now();
+                  console.log(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
+
+                  toggleIndicator(type);
+
+                  const t1 = performance.now();
+                  console.log(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
+                }}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                   config.enabled
                     ? 'bg-purple-600 text-white'
@@ -96,7 +104,15 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
             return (
               <button
                 key={type}
-                onClick={() => toggleIndicator(type)}
+                onClick={() => {
+                  const t0 = performance.now();
+                  console.log(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
+
+                  toggleIndicator(type);
+
+                  const t1 = performance.now();
+                  console.log(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
+                }}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                   config.enabled
                     ? 'bg-purple-600 text-white'

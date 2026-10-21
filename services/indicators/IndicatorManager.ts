@@ -38,21 +38,46 @@ export class IndicatorManager {
    * @param configs 启用的指标配置
    */
   updateIndicators(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
+    const t0 = performance.now();
     const enabledConfigs = configs.filter(c => c.enabled);
 
-    // 检查配置是否变化
+    // ✅ 检查配置是否变化或系列是否缺失
     const configChanged = this.hasConfigChanged(enabledConfigs);
+    const seriesMissing = this.hasSeriesMissing(enabledConfigs);
 
-    if (configChanged) {
-      // 配置变化：完全重建
-      console.log('[IndicatorManager] Config changed, rebuilding all indicators');
+    if (configChanged || seriesMissing) {
+      // 配置变化或系列缺失：完全重建
+      console.log('[IndicatorManager] 🔄 Config changed or series missing, rebuilding all indicators', {
+        configChanged,
+        seriesMissing,
+      });
       this.renderIndicators(bars, configs);
       this.lastConfigs = enabledConfigs;
+
+      const t1 = performance.now();
+      console.log(`[IndicatorManager] ⏱️ 渲染耗时: ${(t1 - t0).toFixed(2)}ms`);
     } else {
-      // 配置未变：只更新数据
+      // 配置未变且系列存在：只更新数据
       console.log('[IndicatorManager] Config unchanged, updating data only');
       this.updateSeriesData(bars, enabledConfigs);
+
+      const t1 = performance.now();
+      console.log(`[IndicatorManager] ⏱️ 更新耗时: ${(t1 - t0).toFixed(2)}ms`);
     }
+  }
+
+  /**
+   * ✅ 检查是否有系列缺失
+   */
+  private hasSeriesMissing(configs: IndicatorConfig[]): boolean {
+    for (const config of configs) {
+      const series = this.indicatorSeries.get(config.type);
+      if (!series || series.length === 0) {
+        console.log(`[IndicatorManager] Series missing for ${config.type}`);
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
