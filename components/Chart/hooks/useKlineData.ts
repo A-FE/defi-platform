@@ -47,6 +47,7 @@ export function useKlineData(
   const oldestTimeRef = useRef<number | null>(null);
   const hasMoreHistoryRef = useRef<boolean>(true);
   const isLoadingMoreRef = useRef<boolean>(false);
+  const isReloadingRef = useRef<boolean>(false);  // ✅ 防止重载期间的更新
 
   const { fetchKlines, subscribeBars, unsubscribeBars, getFromCache } = useKlineStore();
 
@@ -187,6 +188,7 @@ export function useKlineData(
       if (!seriesRef.current) return;
 
       setIsLoading(true);
+      isReloadingRef.current = true;  // ✅ 标记正在重载，阻止 WebSocket 更新
 
       // 重置历史数据追踪
       oldestTimeRef.current = null;
@@ -258,7 +260,8 @@ export function useKlineData(
         // 订阅新周期 WebSocket（传入最后一根 K 线的信息）
         const lastBar = bars[bars.length - 1];
         const unsubscribe = subscribeBars(symbol, newInterval, lastBar, (bar) => {
-          if (!seriesRef.current) return;
+          // ✅ 防止在重载期间更新（避免 "Cannot update oldest data" 错误）
+          if (!seriesRef.current || isReloadingRef.current) return;
 
           // 确保 time 是 number 类型
           const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
@@ -287,9 +290,15 @@ export function useKlineData(
         // 保存取消订阅函数到 ref
         unsubscribeRef.current = unsubscribe;
 
+        // ✅ 等待一小段时间确保图表数据完全设置后再允许更新
+        setTimeout(() => {
+          isReloadingRef.current = false;
+        }, 100);
+
         return unsubscribe;
       } catch (error) {
         console.error('Load K-line data error:', error);
+        isReloadingRef.current = false;  // ✅ 出错时也要清除标记
       } finally {
         setIsLoading(false);
       }

@@ -15,18 +15,17 @@ interface KlineChartProps {
 }
 
 /**
- * K线图主组件 V3 - 统一接口架构
+ * K线图主组件 - 统一接口架构
  * 职责：组合各个子组件，协调数据流
  * 架构：单 chart 动态多 pane
  *  - Pane 0: K线 + 主图指标 (MA/EMA/BOLL) - 固定
  *  - Pane 1-4: 副图指标 (RSI/MACD/KDJ/VOL) - 动态创建/移除
  * 所有 pane 共享同一时间轴，天然对齐
  *
- * V3 核心改变（统一接口重构）：
+ * 核心架构：
  *  - 统一使用 fetchKlines 获取 K 线 + 指标数据
  *  - useKlineData 负责完整数据流（K 线 + 指标）
  *  - useIndicators 只负责渲染（接收数据，不获取数据）
- *  - 架构更清晰，代码更简洁
  */
 export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) {
   // 主图初始化（只包含主 pane）

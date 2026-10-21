@@ -23,9 +23,9 @@ function getIntervalSeconds(interval: KlineInterval): number {
 }
 
 /**
- * K线 Store V2
+ * K线 Store
  * 职责：管理 K线数据、缓存、订阅
- * 核心改变：统一使用 IndicatorKlineItem，移除 fetchHistory
+ * 统一使用 IndicatorKlineItem，单一数据接口
  */
 export const useKlineStore = create<KlineState>()(
   persist(

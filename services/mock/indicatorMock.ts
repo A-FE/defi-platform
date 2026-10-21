@@ -8,7 +8,7 @@ import * as calculators from '../indicators/calculators';
  * 开发阶段使用，用于：
  * 1. 在后端接口未就绪前，前端可以继续开发
  * 2. 测试新的数据流和渲染逻辑
- * 3. 验证 IndicatorManagerV2 的渲染功能
+ * 3. 验证 IndicatorManager 的渲染功能
  *
  * ⚠️ 注意：后端接口就绪后，此文件将被移除
  */
