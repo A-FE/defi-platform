@@ -257,7 +257,7 @@ export function useKlineData(
           }
         }, 100);
 
-        // 订阅新周期 WebSocket（传入最后一根 K 线的信息）
+        // 订阅新周期 WebSocket（传入最后一根 K 线的信息和指标配置）
         const lastBar = bars[bars.length - 1];
         const unsubscribe = subscribeBars(symbol, newInterval, lastBar, (bar) => {
           // ✅ 防止在重载期间更新（避免 "Cannot update oldest data" 错误）
@@ -267,25 +267,74 @@ export function useKlineData(
           const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
           if (isNaN(time)) {
-            console.error('Invalid real-time bar:', bar);
+            console.error('[useKlineData] Invalid real-time bar time:', bar);
             return;
           }
 
-          // 实时更新 K 线
-          seriesRef.current.update({
-            time: time as any,
-            open: bar.open,
-            high: bar.high,
-            low: bar.low,
-            close: bar.close,
-          });
+          // ✅ 获取当前系列的最后一个数据点
+          const seriesData = seriesRef.current.data();
+          if (seriesData.length > 0) {
+            const lastDataPoint = seriesData[seriesData.length - 1];
+            const lastTime = typeof lastDataPoint.time === 'number'
+              ? lastDataPoint.time
+              : Number(lastDataPoint.time);
 
-          // ✅ K 线收盘时触发指标刷新
-          if (bar.isClosed) {
-            console.log('[useKlineData] Bar closed, triggering indicator reload');
-            reloadWithIndicators();
+            // 如果新时间戳 < 最后时间戳，拒绝更新旧数据
+            if (time < lastTime) {
+              console.warn(`[useKlineData] Skipping old data: new time ${time} < last time ${lastTime}`);
+              return;
+            }
+
+            // 如果时间戳相等，说明是更新当前 K 线，允许继续
+            // 如果时间戳更大，说明是新 K 线，也允许继续
           }
-        });
+
+          // 实时更新 K 线
+          try {
+            seriesRef.current.update({
+              time: time as any,
+              open: bar.open,
+              high: bar.high,
+              low: bar.low,
+              close: bar.close,
+            });
+
+            // ✅ 更新 klineData 状态（包含新的指标数据）
+            setKlineData(prev => {
+              const newData = [...prev];
+              const lastIndex = newData.findIndex(b => b.time === bar.time);
+
+              if (lastIndex >= 0) {
+                // 更新现有 bar（合并指标数据）
+                newData[lastIndex] = bar;
+              } else {
+                // 添加新 bar
+                newData.push(bar);
+              }
+
+              return newData;
+            });
+
+            console.log('[useKlineData] Real-time update applied:', {
+              time: new Date(time * 1000).toLocaleString(),
+              hasIndicators: Object.keys(bar.indicators).length > 0,
+            });
+          } catch (error) {
+            console.error('[useKlineData] Failed to update series:', {
+              error,
+              time,
+              bar,
+              lastBar: seriesData[seriesData.length - 1],
+            });
+          }
+
+          // ✅ K 线收盘时不再需要重新加载（指标已实时计算）
+          // 注释掉原有的重载逻辑，因为指标已经通过 WebSocket 推送了
+          // if (bar.isClosed) {
+          //   console.log('[useKlineData] Bar closed, triggering indicator reload');
+          //   reloadWithIndicators();
+          // }
+        }, enabledIndicators);  // ✅ 传入指标配置
 
         // 保存取消订阅函数到 ref
         unsubscribeRef.current = unsubscribe;

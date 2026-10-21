@@ -34,7 +34,8 @@ export interface KlineState {
     symbol: string,
     interval: KlineInterval,
     lastBar: IndicatorKlineItem,
-    callback: (bar: IndicatorKlineItem) => void
+    callback: (bar: IndicatorKlineItem) => void,
+    indicators?: Array<{ name: string; params: number[] }>  // ✅ 新增：支持订阅指标
   ) => () => void;
 
   unsubscribeBars: (symbol: string, interval: KlineInterval) => void;

@@ -16,11 +16,11 @@ export function mockCalculateIndicators(
   bars: IndicatorKlineItem[],  // ✅ 改为统一类型
   params: IndicatorQueryParams
 ): IndicatorKlineItem[] {
-  console.log('[mockCalculateIndicators] Input:', {
-    barsCount: bars.length,
-    indicatorsCount: params.indicators.length,
-    indicators: params.indicators.map(i => `${i.name}(${i.params.join(',')})`),
-  });
+  // console.log('[mockCalculateIndicators] Input:', {
+  //   barsCount: bars.length,
+  //   indicatorsCount: params.indicators.length,
+  //   indicators: params.indicators.map(i => `${i.name}(${i.params.join(',')})`),
+  // });
 
   // 初始化结果：复制 K 线数据，添加空的 indicators 字段
   const result: IndicatorKlineItem[] = bars.map(bar => ({
@@ -178,7 +178,7 @@ export function mockCalculateIndicators(
     }
   });
 
-  console.log('[mockCalculateIndicators] Output:', result);
+  // console.log('[mockCalculateIndicators] Output:', result);
 
   return result;
 }

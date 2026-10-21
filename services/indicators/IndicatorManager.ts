@@ -97,8 +97,6 @@ export class IndicatorManager {
     const deaData: LineData[] = [];
     const histData: HistogramData[] = [];
 
-    console.log(`[IndicatorManager] Rendering MACD:`, bars);
-
     bars.forEach((bar) => {
       if (bar.indicators.macd) {
         const { dif, dea, macd } = bar.indicators.macd;

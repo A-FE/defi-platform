@@ -122,9 +122,9 @@ export const useKlineStore = create<KlineState>()(
       },
 
       /**
-       * 订阅实时 K线更新（WebSocket 只推送 K 线，不带指标）
+       * 订阅实时 K线更新（WebSocket 推送 K 线 + 指标）
        */
-      subscribeBars: (symbol, interval, lastBar, callback) => {
+      subscribeBars: (symbol, interval, lastBar, callback, indicators = []) => {
         // 获取该 symbol+interval 的会话
         const session = klineSessionManager.getOrCreateSession(symbol, interval);
 
@@ -144,7 +144,7 @@ export const useKlineStore = create<KlineState>()(
         let lastBarTime = lastBar.time;
 
         // 开发阶段：使用会话生成实时更新
-        const mockInterval = setInterval(() => {
+        const mockInterval = setInterval(async () => {  // ✅ 改为 async
           try {
             // 每次都重新计算当前对齐的时间戳，确保准确性
             const currentBarTime = TimeAlignmentUtil.getCurrentAlignedTime(interval);
@@ -156,16 +156,69 @@ export const useKlineStore = create<KlineState>()(
             if (TimeAlignmentUtil.validateBarTime(bar.time, lastBarTime)) {
               lastBarTime = bar.time;
 
-              // ✅ 转换为 IndicatorKlineItem 格式（WebSocket 不推送指标）
-              const klineItem: IndicatorKlineItem = {
+              // ✅ 转换为 IndicatorKlineItem 格式
+              let klineItem: IndicatorKlineItem = {
                 time: typeof bar.time === 'number' ? bar.time : Number(bar.time),
                 open: bar.open,
                 high: bar.high,
                 low: bar.low,
                 close: bar.close,
                 volume: bar.volume,
-                indicators: {},  // WebSocket 不推送指标
+                indicators: {},  // 初始为空
               };
+
+              // ✅ 实时计算指标（如果有订阅）
+              if (indicators.length > 0) {
+                try {
+                  // 获取历史数据用于指标计算
+                  const historicalBars = get().bars;
+
+                  // 将当前 bar 合并到历史数据
+                  const allBars = [...historicalBars];
+                  const lastIndex = allBars.findIndex(b => b.time === klineItem.time);
+
+                  if (lastIndex >= 0) {
+                    // 更新现有 bar（保留已有指标，避免丢失）
+                    allBars[lastIndex] = {
+                      ...allBars[lastIndex],
+                      ...klineItem,
+                      indicators: allBars[lastIndex].indicators || {},
+                    };
+                  } else {
+                    // 添加新 bar
+                    allBars.push(klineItem);
+                  }
+
+                  // 动态导入指标计算模块
+                  const { mockCalculateIndicators } = await import('@/services/mock/indicatorMock');
+
+                  // 计算指标
+                  const barsWithIndicators = mockCalculateIndicators(allBars, {
+                    symbol,
+                    resolution: interval,
+                    from: allBars[0]?.time || klineItem.time,
+                    to: klineItem.time,
+                    indicators,
+                  });
+
+                  // 获取当前 bar 的指标数据
+                  const currentBarWithIndicators = barsWithIndicators.find(
+                    b => b.time === klineItem.time
+                  );
+
+                  if (currentBarWithIndicators) {
+                    klineItem = currentBarWithIndicators;
+                  }
+
+                  console.log('[subscribeBars] 实时指标计算完成:', {
+                    time: new Date(klineItem.time * 1000).toLocaleString(),
+                    indicators: Object.keys(klineItem.indicators),
+                  });
+                } catch (error) {
+                  console.error('[subscribeBars] 指标计算失败:', error);
+                  // 计算失败时，仍然推送 K 线数据（不带指标）
+                }
+              }
 
               callback(klineItem);
 
