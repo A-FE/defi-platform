@@ -91,7 +91,7 @@ export function useKlineData(
 
         console.log(`[loadMoreHistory] 当前最早K线: time=${oldestCurrentBar.time}, open=${oldestCurrentBar.open}`);
 
-        // ✅ 使用统一的 fetchKlines 获取更早的历史数据
+        // ✅ 获取更早的历史数据（只获取 K 线，不带指标）
         const olderTime = oldestTimeRef.current;
         const from = olderTime - (50 * getIntervalSeconds(currentInterval));
         const to = olderTime - 1;
@@ -101,7 +101,7 @@ export function useKlineData(
           currentInterval,
           from,
           to,
-          enabledIndicators  // ✅ 传入指标配置
+          []  // ✅ 空数组 = 只获取 K 线数据
         );
 
         if (olderBars && olderBars.length > 0) {
@@ -121,12 +121,57 @@ export function useKlineData(
             high: bar.high * priceAdjustment,
             low: bar.low * priceAdjustment,
             close: bar.close * priceAdjustment,
+            volume: bar.volume,
+            indicators: {},  // 重置指标，后续重新计算
           }));
 
-          // 合并：调整后的旧数据 + 当前数据
-          const allBars = [...adjustedOlderBars, ...currentData];
+          // ✅ 滑动窗口计算指标：用完整数据集（历史 + 当前）计算
+          let finalAdjustedBars = adjustedOlderBars;
+          if (enabledIndicators.length > 0) {
+            try {
+              // 动态导入指标计算模块
+              const { mockCalculateIndicators } = await import('@/services/mock/indicatorMock');
 
-          // 转换为 lightweight-charts 格式
+              // ✅ 关键修复：获取当前完整数据（包含指标）
+              const currentCompleteData = klineData;
+
+              // ✅ 合并：历史数据 + 当前数据 = 完整数据集
+              // 这样 MACD 计算器能看到足够的上下文（50 + 100 = 150 根）
+              const allBarsForCalculation = [...adjustedOlderBars, ...currentCompleteData];
+
+              console.log('[loadMoreHistory] 使用滑动窗口计算指标:', {
+                历史数据: adjustedOlderBars.length,
+                当前数据: currentCompleteData.length,
+                完整数据集: allBarsForCalculation.length,
+              });
+
+              // 用完整数据集计算指标
+              const allBarsWithIndicators = mockCalculateIndicators(allBarsForCalculation, {
+                symbol,
+                resolution: currentInterval,
+                from: allBarsForCalculation[0].time,
+                to: allBarsForCalculation[allBarsForCalculation.length - 1].time,
+                indicators: enabledIndicators,
+              });
+
+              // ✅ 只取前 N 根作为新的历史数据（带指标）
+              finalAdjustedBars = allBarsWithIndicators.slice(0, adjustedOlderBars.length);
+
+              console.log('[loadMoreHistory] 滑动窗口指标计算完成:', {
+                输入数据: allBarsForCalculation.length,
+                输出历史数据: finalAdjustedBars.length,
+                示例指标: Object.keys(finalAdjustedBars[finalAdjustedBars.length - 1]?.indicators || {}),
+              });
+            } catch (error) {
+              console.error('[loadMoreHistory] 指标重新计算失败:', error);
+              // 失败时使用调整后的数据（不带指标）
+            }
+          }
+
+          // 合并：调整后的旧数据 + 当前数据
+          const allBars = [...finalAdjustedBars, ...currentData];
+
+          // 转换为 lightweight-charts 格式（仅 OHLC）
           const formattedData = allBars.map((bar: any) => {
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
 
@@ -147,10 +192,16 @@ export function useKlineData(
           // 使用 setData() 重新设置所有数据
           seriesRef.current.setData(formattedData as any);
 
-          // ✅ 更新完整数据（包括指标）
-          setKlineData(prev => [...adjustedOlderBars, ...prev]);
+          // ✅ 更新完整数据（包括重新计算的指标）
+          setKlineData(prev => {
+            // 获取当前完整数据（包含指标），排除被替换的历史部分
+            const currentCompleteData = prev.filter(bar =>
+              bar.time >= (oldestCurrentBar.time as number)
+            );
+            return [...finalAdjustedBars, ...currentCompleteData];
+          });
 
-          console.log(`[loadMoreHistory] 加载了 ${olderBars.length} 根历史K线，最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
+          console.log(`[loadMoreHistory] 加载了 ${olderBars.length} 根历史K线（含指标），最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
         } else {
           // 没有更多历史数据
           hasMoreHistoryRef.current = false;

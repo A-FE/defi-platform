@@ -21,12 +21,287 @@ export class IndicatorManager {
   // 副图指标的 pane 索引映射
   private indicatorPanes: Map<string, number> = new Map();
 
+  // ✅ 缓存当前的指标配置（用于检测变化）
+  private lastConfigs: IndicatorConfig[] = [];
+
   // 主 pane 固定为 0
   private readonly MAIN_PANE_INDEX = 0;
 
   constructor(chart: IChartApi, mainSeries: ISeriesApi<'Candlestick'>) {
     this.chart = chart;
     this.mainSeries = mainSeries;
+  }
+
+  /**
+   * ✅ 智能更新指标（增量更新 + 按需重建）
+   * @param bars 带指标的 K 线数据
+   * @param configs 启用的指标配置
+   */
+  updateIndicators(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
+    const enabledConfigs = configs.filter(c => c.enabled);
+
+    // 检查配置是否变化
+    const configChanged = this.hasConfigChanged(enabledConfigs);
+
+    if (configChanged) {
+      // 配置变化：完全重建
+      console.log('[IndicatorManager] Config changed, rebuilding all indicators');
+      this.renderIndicators(bars, configs);
+      this.lastConfigs = enabledConfigs;
+    } else {
+      // 配置未变：只更新数据
+      console.log('[IndicatorManager] Config unchanged, updating data only');
+      this.updateSeriesData(bars, enabledConfigs);
+    }
+  }
+
+  /**
+   * ✅ 检查指标配置是否变化
+   */
+  private hasConfigChanged(newConfigs: IndicatorConfig[]): boolean {
+    if (newConfigs.length !== this.lastConfigs.length) {
+      return true;
+    }
+
+    // 比较每个指标的类型和参数
+    for (let i = 0; i < newConfigs.length; i++) {
+      const newConfig = newConfigs[i];
+      const oldConfig = this.lastConfigs[i];
+
+      if (!oldConfig || newConfig.type !== oldConfig.type) {
+        return true;
+      }
+
+      // 比较参数
+      const newParams = JSON.stringify(newConfig.params);
+      const oldParams = JSON.stringify(oldConfig.params);
+      if (newParams !== oldParams) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * ✅ 只更新系列数据（不重建系列）
+   */
+  private updateSeriesData(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
+    configs.forEach((config) => {
+      const series = this.indicatorSeries.get(config.type);
+      if (!series) {
+        // 如果系列不存在，说明需要重建
+        console.warn(`[IndicatorManager] Series not found for ${config.type}, rebuilding`);
+        this.renderIndicators(bars, configs);
+        return;
+      }
+
+      try {
+        switch (config.type) {
+          case 'MACD':
+            this.updateMACDData(bars, series);
+            break;
+          case 'RSI':
+            this.updateRSIData(bars, series);
+            break;
+          case 'KDJ':
+            this.updateKDJData(bars, series);
+            break;
+          case 'BOLL':
+            this.updateBOLLData(bars, series);
+            break;
+          case 'MA':
+            this.updateMAData(bars, series, config);
+            break;
+          case 'EMA':
+            this.updateEMAData(bars, series, config);
+            break;
+          case 'VOL':
+            this.updateVOLData(bars, series);
+            break;
+          default:
+            console.warn(`[IndicatorManager] Unknown indicator type: ${config.type}`);
+        }
+      } catch (error) {
+        console.error(`[IndicatorManager] Failed to update ${config.type}:`, error);
+      }
+    });
+  }
+
+  /**
+   * ✅ 更新 MACD 数据
+   */
+  private updateMACDData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
+    const [difSeries, deaSeries, histSeries] = series;
+
+    const difData: LineData[] = [];
+    const deaData: LineData[] = [];
+    const histData: HistogramData[] = [];
+
+    bars.forEach((bar) => {
+      if (bar.indicators.macd) {
+        const { dif, dea, macd } = bar.indicators.macd;
+
+        difData.push({ time: bar.time as any, value: dif });
+        deaData.push({ time: bar.time as any, value: dea });
+        histData.push({
+          time: bar.time as any,
+          value: macd,
+          color: macd >= 0 ? '#26a69a' : '#ef5350',
+        });
+      }
+    });
+
+    if (difData.length > 0) {
+      difSeries.setData(difData);
+      deaSeries.setData(deaData);
+      histSeries.setData(histData);
+    }
+  }
+
+  /**
+   * ✅ 更新 RSI 数据
+   */
+  private updateRSIData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
+    const [rsiSeries] = series;
+
+    const rsiData: LineData[] = bars
+      .filter((bar) => bar.indicators.rsi)
+      .map((bar) => ({
+        time: bar.time as any,
+        value: bar.indicators.rsi!.rsi,
+      }));
+
+    if (rsiData.length > 0) {
+      rsiSeries.setData(rsiData);
+    }
+  }
+
+  /**
+   * ✅ 更新 KDJ 数据
+   */
+  private updateKDJData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
+    const [kSeries, dSeries, jSeries] = series;
+
+    const kData: LineData[] = [];
+    const dData: LineData[] = [];
+    const jData: LineData[] = [];
+
+    bars.forEach((bar) => {
+      if (bar.indicators.kdj) {
+        const { k, d, j } = bar.indicators.kdj;
+        kData.push({ time: bar.time as any, value: k });
+        dData.push({ time: bar.time as any, value: d });
+        jData.push({ time: bar.time as any, value: j });
+      }
+    });
+
+    if (kData.length > 0) {
+      kSeries.setData(kData);
+      dSeries.setData(dData);
+      jSeries.setData(jData);
+    }
+  }
+
+  /**
+   * ✅ 更新 BOLL 数据
+   */
+  private updateBOLLData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
+    const [upperSeries, middleSeries, lowerSeries] = series;
+
+    const upperData: LineData[] = [];
+    const middleData: LineData[] = [];
+    const lowerData: LineData[] = [];
+
+    bars.forEach((bar) => {
+      if (bar.indicators.boll) {
+        const { upper, middle, lower } = bar.indicators.boll;
+        upperData.push({ time: bar.time as any, value: upper });
+        middleData.push({ time: bar.time as any, value: middle });
+        lowerData.push({ time: bar.time as any, value: lower });
+      }
+    });
+
+    if (upperData.length > 0) {
+      upperSeries.setData(upperData);
+      middleSeries.setData(middleData);
+      lowerSeries.setData(lowerData);
+    }
+  }
+
+  /**
+   * ✅ 更新 MA 数据
+   */
+  private updateMAData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[], config: IndicatorConfig): void {
+    const periods = Object.keys(config.params);
+
+    periods.forEach((period, index) => {
+      const maSeries = series[index];
+      if (!maSeries) return;
+
+      const maKey = `ma${config.params[period]}`;
+      const maData: LineData[] = [];
+
+      bars.forEach((bar) => {
+        if (bar.indicators.ma && bar.indicators.ma[maKey] !== undefined) {
+          maData.push({
+            time: bar.time as any,
+            value: bar.indicators.ma[maKey],
+          });
+        }
+      });
+
+      if (maData.length > 0) {
+        maSeries.setData(maData);
+      }
+    });
+  }
+
+  /**
+   * ✅ 更新 EMA 数据
+   */
+  private updateEMAData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[], config: IndicatorConfig): void {
+    const periods = Object.keys(config.params);
+
+    periods.forEach((period, index) => {
+      const emaSeries = series[index];
+      if (!emaSeries) return;
+
+      const emaKey = `ema${config.params[period]}`;
+      const emaData: LineData[] = [];
+
+      bars.forEach((bar) => {
+        if (bar.indicators.ema && bar.indicators.ema[emaKey] !== undefined) {
+          emaData.push({
+            time: bar.time as any,
+            value: bar.indicators.ema[emaKey],
+          });
+        }
+      });
+
+      if (emaData.length > 0) {
+        emaSeries.setData(emaData);
+      }
+    });
+  }
+
+  /**
+   * ✅ 更新 VOL 数据
+   */
+  private updateVOLData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
+    const [volSeries] = series;
+
+    const volData: HistogramData[] = bars
+      .filter((bar) => bar.volume !== undefined)
+      .map((bar) => ({
+        time: bar.time as any,
+        value: bar.volume,
+        color: '#4fc3f7',
+      }));
+
+    if (volData.length > 0) {
+      volSeries.setData(volData);
+    }
   }
 
   /**

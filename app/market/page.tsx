@@ -26,7 +26,7 @@ export default function MarketPage() {
   return (
     <TradingLayout>
       {/* 品种选择器 */}
-      <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
+      {/* <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-400 mr-2">选择品种:</span>
           {MARKET_SYMBOLS?.map((market) => (
@@ -43,10 +43,10 @@ export default function MarketPage() {
             </button>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Ticker 行情 */}
-      <div className="mb-6 p-6 bg-gray-900 rounded-lg border border-gray-800">
+      {/* <div className="mb-6 p-6 bg-gray-900 rounded-lg border border-gray-800">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold">{selectedSymbol}</h2>
@@ -56,7 +56,7 @@ export default function MarketPage() {
           </div>
         </div>
         <PriceTicker symbol={selectedSymbol} />
-      </div>
+      </div> */}
 
       {/* K线图 + 订单簿 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

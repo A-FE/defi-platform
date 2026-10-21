@@ -20,16 +20,20 @@ export class PriceGenerator {
     // 1. Open = 上一根的 Close（K线连续性）
     const open = prevClose;
 
-    // 2. 计算趋势性变化（带有趋势的随机游走）
-    const trendMove = trend * trendStrength * 0.01; // 趋势移动 ±0.3% - ±0.7%
-    const randomMove = (Math.random() - 0.5) * 0.02; // 随机噪音 ±1%
-    const totalMove = trendMove + randomMove;
+    // 2. ✅ 限制新 bar 的变化幅度（±1%）
+    const maxMove = 0.01; // 1%
+    const trendMove = trend * trendStrength * 0.005; // 趋势移动 ±0.15% - ±0.35%
+    const randomMove = (Math.random() - 0.5) * 0.01; // 随机噪音 ±0.5%
+    const rawTotalMove = trendMove + randomMove;
+
+    // ✅ 限制总变化在 ±1%
+    const totalMove = Math.max(-maxMove, Math.min(maxMove, rawTotalMove));
 
     // 3. 计算 Close（基于 open 和总体移动）
     const close = open * (1 + totalMove);
 
     // 4. 计算 High 和 Low（模拟价格波动范围）
-    const volatility = 0.005 + Math.random() * 0.015; // 波动率 0.5% - 2%
+    const volatility = 0.005 + Math.random() * 0.01; // ✅ 减小波动率 0.5% - 1.5%
     const upperWick = Math.random() * volatility; // 上影线
     const lowerWick = Math.random() * volatility; // 下影线
 
@@ -75,14 +79,26 @@ export class PriceGenerator {
     // 1. Open 保持不变
     const open = currentOpen;
 
-    // 2. 计算新的 Close（基于 open 的随机游走）
-    const trendMove = trend * trendStrength * 0.01;
-    const randomMove = (Math.random() - 0.5) * 0.02;
-    const totalMove = trendMove + randomMove;
-    const close = open * (1 + totalMove);
+    // 2. ✅ 限制单次更新的变化幅度（±0.5%）
+    const maxSingleMove = 0.005; // 0.5%
+    const trendMove = trend * trendStrength * 0.003; // ±0.09% - ±0.21%
+    const randomMove = (Math.random() - 0.5) * 0.006; // ±0.3%
+    const rawTotalMove = trendMove + randomMove;
 
-    // 3. 更新 High 和 Low（只能扩大范围）
-    const volatility = 0.005 + Math.random() * 0.015;
+    // ✅ 限制在 ±0.5%
+    const totalMove = Math.max(-maxSingleMove, Math.min(maxSingleMove, rawTotalMove));
+
+    // 3. 计算新的 Close
+    let close = open * (1 + totalMove);
+
+    // ✅ 限制相对于 open 的总变化在 ±3%
+    const maxTotalChange = 0.03; // 3%
+    const minClose = open * (1 - maxTotalChange);
+    const maxClose = open * (1 + maxTotalChange);
+    close = Math.max(minClose, Math.min(maxClose, close));
+
+    // 4. 更新 High 和 Low（只能扩大范围）
+    const volatility = 0.002 + Math.random() * 0.006; // ✅ 减小波动 0.2% - 0.8%
     const upperWick = Math.random() * volatility;
     const lowerWick = Math.random() * volatility;
 
@@ -96,8 +112,8 @@ export class PriceGenerator {
     const high = Math.max(currentHigh, newHigh);
     const low = Math.min(currentLow, newLow);
 
-    // 4. 累加成交量
-    const additionalVolume = (100 + Math.random() * 200) * (1 + Math.abs(totalMove) * 10);
+    // 5. 累加成交量
+    const additionalVolume = (50 + Math.random() * 150) * (1 + Math.abs(totalMove) * 10);
     const volume = currentVolume + additionalVolume;
 
     return {
