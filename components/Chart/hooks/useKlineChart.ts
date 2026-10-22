@@ -63,9 +63,11 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     currentKlineData: fullKlineData, // ✅ 传入完整数据
     onDataLoaded: (bars) => {
       setFullKlineData(bars);
-      // ✅ 更新显示数据（最新 50 根）
-      setDisplayKlineData(bars.slice(-CHART_DATA_CONFIG.DISPLAY_DATA_SIZE));
+      // ✅ 历史加载时，保持显示所有数据（不限制为 50 根）
+      // 图表的可见范围由 timeScale.setVisibleRange 控制
+      setDisplayKlineData(bars);
     },
+    enabledIndicators, // ✅ 传入启用的指标列表
   });
 
   // ========== 4. K 线数据加载 ==========
@@ -94,6 +96,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     onOldestTimeUpdate: (time) => {
       oldestTimeRef.current = time;
     },
+    enabledIndicators, // ✅ 传入启用的指标列表
   });
 
   // ========== 5. 指标渲染 ==========

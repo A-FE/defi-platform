@@ -1,8 +1,10 @@
 import { useCallback, useRef } from 'react';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import { KlineInterval, KlineBar } from '@/types/market';
+import { IndicatorConfig } from '@/types/indicator';
 import { getIntervalSeconds } from './utils/chartTimeFormat';
 import { CHART_DATA_CONFIG } from '@/constants/chart';
+import { calculateTotalDataSize } from '@/utils/indicatorDataRequirements';
 
 interface UseKlineDataLoaderProps {
   symbol: string;
@@ -13,15 +15,17 @@ interface UseKlineDataLoaderProps {
   onDataLoaded: (bars: KlineBar[] | ((prev: KlineBar[]) => KlineBar[])) => void; // 完整数据回调
   onDisplayDataLoaded: (bars: KlineBar[] | ((prev: KlineBar[]) => KlineBar[])) => void; // 显示数据回调
   onOldestTimeUpdate: (time: number) => void;
+  enabledIndicators: IndicatorConfig[]; // ✅ 新增：启用的指标列表
 }
 
 /**
  * K线数据加载 Hook
  * 职责：初始加载历史数据 + WebSocket 实时订阅
  *
- * 数据分离策略：
- * - 获取 100 根 K 线（用于指标计算）
- * - 只渲染最新 50 根（用于图表显示）
+ * 动态冗余数据加载策略：
+ * - 根据启用的指标计算所需的数据量
+ * - 实际加载量 = 显示数据量 + (指标最大需求 * 2)
+ * - 例如：显示 50 根 + MACD 需要 35 根 * 2 = 120 根
  */
 export function useKlineDataLoader({
   symbol,
@@ -30,12 +34,14 @@ export function useKlineDataLoader({
   fetchKlines,
   subscribeBars,
   onDataLoaded,
-  onDisplayDataLoaded, // ✅ 新增：显示数据回调
+  onDisplayDataLoaded,
   onOldestTimeUpdate,
+  enabledIndicators, // ✅ 启用的指标列表
 }: UseKlineDataLoaderProps) {
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
   const isReloadingRef = useRef<boolean>(false);
   const lastLoadedIntervalRef = useRef<KlineInterval | null>(null);
+  const totalDataSizeRef = useRef<number>(CHART_DATA_CONFIG.BASE_DATA_SIZE); // ✅ 缓存当前的总数据量
 
   const loadKlineData = useCallback(
     async (interval: KlineInterval) => {
@@ -58,8 +64,25 @@ export function useKlineDataLoader({
 
       try {
         const now = Math.floor(Date.now() / 1000);
-        // ✅ 加载 100 根 K 线（用于指标计算）
-        const from = now - (CHART_DATA_CONFIG.FULL_DATA_SIZE * getIntervalSeconds(interval));
+
+        // ✅ 动态计算需要加载的数据量
+        // 基础数据量 = 显示数据量 + (指标最大需求 * 2)
+        const totalDataSize = Math.max(
+          CHART_DATA_CONFIG.BASE_DATA_SIZE,
+          calculateTotalDataSize(CHART_DATA_CONFIG.DISPLAY_DATA_SIZE, enabledIndicators)
+        );
+
+        // ✅ 缓存到 ref，供 WebSocket 回调使用
+        totalDataSizeRef.current = totalDataSize;
+
+        console.log('[loadKlineData] 📊 数据量计算:', {
+          显示数据量: CHART_DATA_CONFIG.DISPLAY_DATA_SIZE,
+          启用指标数: enabledIndicators.length,
+          总加载量: totalDataSize,
+          指标列表: enabledIndicators.map(ind => `${ind.type}(${Object.values(ind.params).join(',')})`),
+        });
+
+        const from = now - (totalDataSize * getIntervalSeconds(interval));
 
         const allBars = await fetchKlines(symbol, interval, from, now);
 
@@ -68,25 +91,20 @@ export function useKlineDataLoader({
           return;
         }
 
-        // ✅ 分离数据：完整数据和显示数据
-        const displayBars = allBars.slice(-CHART_DATA_CONFIG.DISPLAY_DATA_SIZE);
-
-        // 保存完整数据（用于指标计算）
+        // ✅ 完整数据和显示数据都设置为全部数据
+        // 图表的可见范围通过 timeScale.setVisibleRange 控制
         onDataLoaded(allBars);
-
-        // 保存显示数据（用于图表渲染）
-        onDisplayDataLoaded(displayBars);
+        onDisplayDataLoaded(allBars);
 
         // 记录最旧时间戳
         onOldestTimeUpdate(allBars[0].time);
 
         console.log('[loadKlineData] 数据加载完成:', {
           total: allBars.length,
-          display: displayBars.length,
         });
 
-        // 渲染 K 线到图表（只渲染显示数据）
-        const data = displayBars.map((bar) => {
+        // 渲染 K 线到图表（渲染全部数据）
+        const data = allBars.map((bar) => {
           const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
           if (isNaN(time)) throw new Error(`Invalid time: ${bar.time}`);
 
@@ -101,17 +119,23 @@ export function useKlineDataLoader({
 
         seriesRef.current.setData(data);
 
-        console.log(`[loadKlineData] 加载完成: 总计 ${allBars.length} 根，显示 ${displayBars.length} 根`);
+        console.log(`[loadKlineData] 加载完成: 总计 ${allBars.length} 根 K 线`);
 
-        // 设置可视范围
+        // 设置可视范围：初始只显示最新 50 根
         setTimeout(() => {
           const timeScale = chartRef.current?.timeScale();
-          if (timeScale && data.length > 30) {
-            const visibleStart = data[data.length - 30].time;
+          if (timeScale && data.length > CHART_DATA_CONFIG.DISPLAY_DATA_SIZE) {
+            // 显示最新 50 根 K 线
+            const visibleStart = data[data.length - CHART_DATA_CONFIG.DISPLAY_DATA_SIZE].time;
             const visibleEnd = data[data.length - 1].time;
             timeScale.setVisibleRange({
               from: visibleStart as any,
               to: visibleEnd as any,
+            });
+            console.log('[loadKlineData] 设置可见范围:', {
+              from: visibleStart,
+              to: visibleEnd,
+              count: CHART_DATA_CONFIG.DISPLAY_DATA_SIZE,
             });
           } else {
             timeScale?.fitContent();
@@ -176,16 +200,16 @@ export function useKlineDataLoader({
                 newData[lastIndex] = bar;
               } else {
                 newData.push(bar);
-                // ✅ 保持完整数据在合理范围内
-                if (newData.length > CHART_DATA_CONFIG.MAX_FULL_DATA_SIZE) {
-                  return newData.slice(-CHART_DATA_CONFIG.FULL_DATA_SIZE);
+                // ✅ 保持数据在合理范围内（防止内存溢出）
+                if (newData.length > CHART_DATA_CONFIG.MAX_DATA_SIZE) {
+                  return newData.slice(-totalDataSizeRef.current);
                 }
               }
 
               return newData;
             });
 
-            // ✅ 通知外部更新显示数据
+            // ✅ 通知外部更新显示数据（与完整数据保持一致）
             onDisplayDataLoaded((prev: KlineBar[]) => {
               const newData = [...prev];
               const lastIndex = newData.findIndex(b => b.time === bar.time);
@@ -194,9 +218,9 @@ export function useKlineDataLoader({
                 newData[lastIndex] = bar;
               } else {
                 newData.push(bar);
-                // ✅ 保持显示数据在 50 根
-                if (newData.length > CHART_DATA_CONFIG.DISPLAY_DATA_SIZE) {
-                  return newData.slice(-CHART_DATA_CONFIG.DISPLAY_DATA_SIZE);
+                // ✅ 显示数据也保持在合理范围内（与完整数据一致）
+                if (newData.length > CHART_DATA_CONFIG.MAX_DATA_SIZE) {
+                  return newData.slice(-totalDataSizeRef.current);
                 }
               }
 
@@ -219,7 +243,7 @@ export function useKlineDataLoader({
         isReloadingRef.current = false;
       }
     },
-    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef, onDataLoaded, onDisplayDataLoaded, onOldestTimeUpdate]
+    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef, onDataLoaded, onDisplayDataLoaded, onOldestTimeUpdate, enabledIndicators]
   );
 
   const unsubscribe = useCallback(() => {

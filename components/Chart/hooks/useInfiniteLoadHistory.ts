@@ -1,7 +1,9 @@
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import { KlineInterval, KlineBar } from '@/types/market';
+import { IndicatorConfig } from '@/types/indicator';
 import { getIntervalSeconds } from './utils/chartTimeFormat';
+import { getMaxIndicatorDataRequirement } from '@/utils/indicatorDataRequirements';
 
 interface UseInfiniteLoadHistoryProps {
   symbol: string;
@@ -10,7 +12,8 @@ interface UseInfiniteLoadHistoryProps {
   seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>;
   fetchKlines: (symbol: string, interval: KlineInterval, from: number, to: number) => Promise<KlineBar[]>;
   onDataLoaded: (bars: KlineBar[]) => void;
-  currentKlineData: KlineBar[]; // ✅ 新增：从外部传入完整的 K 线数据（包含 volume）
+  currentKlineData: KlineBar[]; // ✅ 从外部传入完整的 K 线数据（包含 volume）
+  enabledIndicators: IndicatorConfig[]; // ✅ 新增：启用的指标列表
 }
 
 /**
@@ -21,6 +24,7 @@ interface UseInfiniteLoadHistoryProps {
  * 2. 自动加载更早的历史数据
  * 3. 价格调整确保连续性
  * 4. 管理加载状态
+ * 5. ✅ 根据启用的指标动态计算触发阈值
  */
 export function useInfiniteLoadHistory({
   symbol,
@@ -30,12 +34,35 @@ export function useInfiniteLoadHistory({
   fetchKlines,
   onDataLoaded,
   currentKlineData, // ✅ 接收完整的 K 线数据
+  enabledIndicators, // ✅ 接收启用的指标列表
 }: UseInfiniteLoadHistoryProps) {
   // ========== 状态管理 ==========
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const oldestTimeRef = useRef<number | null>(null);
   const hasMoreHistoryRef = useRef<boolean>(true);
+
+  // ========== 安全缓冲区配置 ==========
+  const SAFETY_BUFFER = 10;
+
+  // ========== 动态计算触发阈值 ==========
+  // 根据启用的指标计算触发阈值
+  // 例如：MACD 需要 35 根数据，触发阈值 = 35 + 10 = 45
+  const triggerThreshold = useMemo(() => {
+    const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
+    const threshold = maxRequirement + SAFETY_BUFFER;
+
+    console.log('[useInfiniteLoadHistory] 📏 计算触发阈值:', {
+      maxRequirement,
+      safetyBuffer: SAFETY_BUFFER,
+      threshold,
+      indicators: enabledIndicators.map(ind =>
+        `${ind.type}(${Object.values(ind.params).join(',')})`
+      ),
+    });
+
+    return threshold;
+  }, [enabledIndicators]);
 
   // ========== 加载历史数据逻辑 ==========
   const loadMoreHistory = useCallback(
@@ -144,8 +171,17 @@ export function useInfiniteLoadHistory({
       const logicalRange = timeScale.getVisibleLogicalRange();
       if (!logicalRange) return;
 
+      console.log('[useInfiniteLoadHistory] 📊 可视范围变化:', {
+        from: logicalRange.from.toFixed(2),
+        to: logicalRange.to.toFixed(2),
+        triggerThreshold,
+        shouldLoad: logicalRange.from < triggerThreshold,
+      });
+
+      // ✅ 使用动态阈值：基于需求最大的指标
       // 当用户滚动到左侧边界附近时，自动加载更多历史数据
-      if (logicalRange.from < 5) {
+      if (logicalRange.from < triggerThreshold) {
+        console.log('[useInfiniteLoadHistory] 🔄 触发历史数据加载');
         loadMoreHistory();
       }
     };
@@ -155,7 +191,7 @@ export function useInfiniteLoadHistory({
     return () => {
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
-  }, [chartRef, loadMoreHistory]);
+  }, [chartRef, loadMoreHistory, triggerThreshold]);
 
   // ========== 对外接口 ==========
   return {
