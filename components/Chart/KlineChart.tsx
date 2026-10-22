@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useKlineChart } from './hooks/useKlineChart';
 import ChartControls from './ChartControls';
 import { IndicatorLegend } from './IndicatorLegend';
@@ -22,8 +23,10 @@ interface KlineChartProps {
  *  - 使用单一的 useKlineChart hook 管理所有逻辑
  *  - 图表初始化 + K 线数据 + 指标渲染 统一在一个 hook 内
  *  - 简化组件代码，提高可维护性
+ *
+ * ✅ 性能优化：使用 React.memo 避免不必要的重渲染
  */
-export function KlineChart({ symbol, defaultInterval = '1d' }: KlineChartProps) {
+const KlineChartComponent = ({ symbol, defaultInterval = '1d' }: KlineChartProps) => {
   // ✅ 统一的图表 hook（合并了原来的 3 个 hooks）
   const {
     containerRef,
@@ -77,6 +80,9 @@ export function KlineChart({ symbol, defaultInterval = '1d' }: KlineChartProps) 
       </div>
     </div>
   );
-}
+};
+
+// ✅ 性能优化：使用 memo 避免父组件重渲染时的不必要更新
+export const KlineChart = memo(KlineChartComponent);
 
 export default KlineChart;

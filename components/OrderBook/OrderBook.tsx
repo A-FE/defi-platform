@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback, memo } from 'react';
 import { useDepthStore } from '@/stores';
 import { DepthItem } from '@/types/market';
 
@@ -11,8 +11,9 @@ interface OrderBookProps {
 
 /**
  * 订单簿主组件
+ * ✅ 性能优化：使用 React.memo 避免不必要的重渲染
  */
-export function OrderBook({ symbol, maxLevels = 15 }: OrderBookProps) {
+const OrderBookComponent = ({ symbol, maxLevels = 15 }: OrderBookProps) => {
   const { bids, asks, changedPrices, subscribe, unsubscribe } = useDepthStore();
 
   // 订阅深度数据
@@ -63,7 +64,10 @@ export function OrderBook({ symbol, maxLevels = 15 }: OrderBookProps) {
       </div>
     </div>
   );
-}
+};
+
+// ✅ 性能优化：使用 memo 避免父组件重渲染时的不必要更新
+export const OrderBook = memo(OrderBookComponent);
 
 /**
  * 订单簿表头
@@ -165,10 +169,10 @@ function useDepthRender(bids: DepthItem[], asks: DepthItem[]) {
     scheduleRender();
   }, [bids, asks, scheduleRender]);
 
-  // 计算最大累计量
+  // ✅ 性能优化：只依赖首项的 total 值，避免整个数组变化时重新计算
   const maxTotal = useMemo(() => {
     return Math.max(bids[0]?.total || 0, asks[0]?.total || 0);
-  }, [bids, asks, renderTrigger]);
+  }, [bids[0]?.total, asks[0]?.total, renderTrigger]);
 
   useEffect(() => {
     return () => {

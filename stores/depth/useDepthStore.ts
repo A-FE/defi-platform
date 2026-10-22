@@ -9,11 +9,15 @@ import { DEPTH_LEVELS } from '@/constants/api';
  * 订单簿 Store
  * 职责：管理订单簿深度数据
  */
-export const useDepthStore = create<DepthState>((set, get) => ({
-  bids: [],
-  asks: [],
-  sequence: 0,
-  changedPrices: new Set(),
+export const useDepthStore = create<DepthState>((set, get) => {
+  // ✅ 性能优化：保存定时器 ID，支持清理
+  let highlightTimer: NodeJS.Timeout | null = null;
+
+  return {
+    bids: [],
+    asks: [],
+    sequence: 0,
+    changedPrices: new Set(),
 
   /**
    * 订阅订单簿深度
@@ -37,10 +41,11 @@ export const useDepthStore = create<DepthState>((set, get) => ({
     });
 
     // 开发阶段：使用 Mock 数据模拟实时更新
+    // ✅ 性能优化：降低更新频率 100ms → 300ms，减少 CPU 负载
     const mockInterval = setInterval(() => {
       const update = depthMockService.generateUpdate(symbol);
       get().handleUpdate(update);
-    }, 100); // 每 100ms 更新一次（高频）
+    }, 300); // 每 300ms 更新一次（从 100ms 优化而来）
 
     // 清理函数
     return () => {
@@ -104,15 +109,27 @@ export const useDepthStore = create<DepthState>((set, get) => ({
       changedPrices,
     });
 
+    // ✅ 性能优化：清理旧定时器，避免多个定时器累积
+    if (highlightTimer) {
+      clearTimeout(highlightTimer);
+    }
+
     // 1 秒后清除高亮
-    setTimeout(() => {
+    highlightTimer = setTimeout(() => {
       set({ changedPrices: new Set() });
+      highlightTimer = null;
     }, 1000);
   },
-}));
+};
+});
 
 /**
- * 更新深度一侧
+ * ✅ 性能优化：增量更新深度一侧（避免每次全量排序）
+ *
+ * 优化策略：
+ * 1. 只有在价格档位变化时才重新排序
+ * 2. 对于已存在价格的更新，直接原地修改
+ * 3. 减少不必要的数组操作
  */
 function updateDepthSide(
   current: DepthItem[],
@@ -120,10 +137,13 @@ function updateDepthSide(
   order: 'asc' | 'desc',
   changedPrices: Set<number>,
 ): DepthItem[] {
-  const map = new Map<number, number>();
+  // 快速路径：如果更新为空，直接返回当前数据
+  if (updates.length === 0) {
+    return current;
+  }
 
-  // 将当前数据放入 Map
-  current.forEach((item) => map.set(item.price, item.quantity));
+  let needsSort = false;
+  const result = [...current];
 
   // 应用增量更新
   updates.forEach((item) => {
@@ -132,21 +152,32 @@ function updateDepthSide(
 
     changedPrices.add(price);
 
+    // 查找该价格在数组中的位置
+    const index = result.findIndex((d) => d.price === price);
+
     if (quantity === 0) {
-      map.delete(price); // 数量 = 0，删除该档位
+      // 删除该档位
+      if (index >= 0) {
+        result.splice(index, 1);
+      }
+    } else if (index >= 0) {
+      // 更新已存在的价格（原地修改）
+      result[index] = { ...result[index], quantity };
     } else {
-      map.set(price, quantity);
+      // 新增价格档位
+      result.push({ price, quantity, total: 0 });
+      needsSort = true; // 新增需要排序
     }
   });
 
-  // 排序 + 计算累计量
-  const sortedItems = Array.from(map.entries())
-    .map(([price, quantity]) => ({ price, quantity }))
-    .sort((a, b) => (order === 'desc' ? b.price - a.price : a.price - b.price));
+  // 只在有新增价格时才排序
+  if (needsSort) {
+    result.sort((a, b) => (order === 'desc' ? b.price - a.price : a.price - b.price));
+  }
 
-  // 计算累计量
+  // 重新计算累计量
   let cumulativeTotal = 0;
-  return sortedItems.map((item) => {
+  return result.map((item) => {
     cumulativeTotal += item.quantity;
     return {
       ...item,

@@ -1,7 +1,7 @@
 /* eslint-disable max-lines-per-function */
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { useKlineStore, useChartCrosshairStore } from '@/stores';
 
 interface PriceTickerProps {
@@ -15,9 +15,14 @@ interface PriceTickerProps {
  * - 鼠标 hover 图表时：显示当前点位的 K 线数据
  * - 鼠标未 hover 时：显示最新的 K 线数据
  * - 显示内容：价格、涨跌幅（相对开盘价）、高点、低点、成交量
+ *
+ * ✅ 性能优化：使用 React.memo 避免父组件重渲染时的不必要更新
  */
-export function PriceTicker({ symbol }: PriceTickerProps) {
-  const { bars } = useKlineStore();
+const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
+  // ✅ 性能优化：使用 selector 只订阅最新的 bar，避免整个 bars 数组变化时重渲染
+  const latestBar = useKlineStore((state) =>
+    state.bars.length > 0 ? state.bars[state.bars.length - 1] : null,
+  );
   const { getCrosshair } = useChartCrosshairStore();
 
   const crosshair = getCrosshair(symbol);
@@ -25,14 +30,11 @@ export function PriceTicker({ symbol }: PriceTickerProps) {
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | null>(null);
   const prevPriceRef = useRef<number>(0);
 
-  // 获取最新的 K 线数据
-  const latestBar = bars.length > 0 ? bars[bars.length - 1] : null;
-
   // 决定显示的数据来源：hover 的 K 线 或 最新的 K 线
   const isHovering = crosshair?.isHovering && crosshair?.bar;
   const displayBar = isHovering ? crosshair.bar : latestBar;
 
-  // 监听价格变化，触发颜色变化（仅在非 hover 状态）
+  // ✅ 性能优化：只依赖 close 价格原始值，避免 latestBar 对象变化时重复创建定时器
   useEffect(() => {
     // 如果正在 hover，不触发价格变化动画
     if (isHovering) {
@@ -57,7 +59,7 @@ export function PriceTicker({ symbol }: PriceTickerProps) {
     // 300ms 后恢复默认颜色
     const timer = setTimeout(() => setPriceDirection(null), 300);
     return () => clearTimeout(timer);
-  }, [latestBar?.close, isHovering, latestBar]);
+  }, [latestBar?.close, isHovering]); // 只依赖 close 值和 hover 状态
 
   if (!displayBar) {
     return (
@@ -161,6 +163,10 @@ export function PriceTicker({ symbol }: PriceTickerProps) {
       </div>
     </div>
   );
-}
+};
+
+// ✅ 性能优化：使用 memo 避免父组件重渲染导致的不必要更新
+// symbol 不变时不重新渲染
+export const PriceTicker = memo(PriceTickerComponent);
 
 export default PriceTicker;
