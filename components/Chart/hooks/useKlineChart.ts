@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useKlineStore, useIndicatorStore } from '@/stores';
+import { useState, useEffect } from 'react';
+import { useKlineStore } from '@/stores';
 import { KlineInterval, KlineBar } from '@/types/market';
 
 // 拆分后的子 Hooks
@@ -8,6 +8,7 @@ import { useTimeFormatUpdate } from './useTimeFormatUpdate';
 import { useKlineDataLoader } from './useKlineDataLoader';
 import { useInfiniteLoadHistory } from './useInfiniteLoadHistory';
 import { useIndicatorRenderer } from './useIndicatorRenderer';
+import { useEnabledIndicators } from './useEnabledIndicators';
 
 interface UseKlineChartProps {
   symbol: string;
@@ -30,11 +31,9 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
 
   // ========== Store ==========
   const { fetchKlines, subscribeBars } = useKlineStore();
-  const { getEnabledIndicators } = useIndicatorStore();
 
-  // 缓存指标配置，避免不必要的重渲染
-  const enabledIndicators = useMemo(() => getEnabledIndicators(), [getEnabledIndicators]);
-  const memoizedIndicators = useMemo(() => enabledIndicators, [enabledIndicators]);
+  // ========== 响应式订阅启用的指标 ==========
+  const enabledIndicators = useEnabledIndicators();
 
   // ========== 1. 图表初始化 ==========
   const { containerRef, chartRef, seriesRef, managerRef } = useChartInit();
@@ -78,7 +77,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   });
 
   // ========== 5. 指标渲染 ==========
-  useIndicatorRenderer(chartRef, managerRef, klineData, memoizedIndicators);
+  useIndicatorRenderer(chartRef, managerRef, klineData, enabledIndicators);
 
   // ========== 6. 周期变化监听 ==========
   useEffect(() => {

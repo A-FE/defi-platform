@@ -20,20 +20,20 @@ export class PriceGenerator {
     // 1. Open = 上一根的 Close（K线连续性）
     const open = prevClose;
 
-    // 2. ✅ 限制新 bar 的变化幅度（±1%）
-    const maxMove = 0.01; // 1%
-    const trendMove = trend * trendStrength * 0.005; // 趋势移动 ±0.15% - ±0.35%
-    const randomMove = (Math.random() - 0.5) * 0.01; // 随机噪音 ±0.5%
+    // 2. ✅ 大幅减小新 bar 的变化幅度（±0.3%）避免跳空
+    const maxMove = 0.003; // 0.3%（原来是 1%）
+    const trendMove = trend * trendStrength * 0.002; // 趋势移动 ±0.06% - ±0.14%
+    const randomMove = (Math.random() - 0.5) * 0.003; // 随机噪音 ±0.15%
     const rawTotalMove = trendMove + randomMove;
 
-    // ✅ 限制总变化在 ±1%
+    // ✅ 限制总变化在 ±0.3%
     const totalMove = Math.max(-maxMove, Math.min(maxMove, rawTotalMove));
 
     // 3. 计算 Close（基于 open 和总体移动）
     const close = open * (1 + totalMove);
 
-    // 4. 计算 High 和 Low（模拟价格波动范围）
-    const volatility = 0.002 + Math.random() * 0.005; // ✅ 减小波动率 0.5% - 1.5%
+    // 4. 计算 High 和 Low（减小影线波动）
+    const volatility = 0.001 + Math.random() * 0.002; // ✅ 减小波动率 0.1% - 0.3%（原来是 0.5% - 1.5%）
     const upperWick = Math.random() * volatility; // 上影线
     const lowerWick = Math.random() * volatility; // 下影线
 
