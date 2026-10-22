@@ -62,13 +62,13 @@ export class IndicatorManager {
   public updateIndicators(
     fullBars: KlineBar[],
     displayBars: KlineBar[],
-    configs: IndicatorConfig[]
+    configs: IndicatorConfig[],
   ): void {
     const enabledConfigs = configs.filter(c => c.enabled);
 
     if (enabledConfigs.length === 0) {
       this.clear();
-      console.log('[IndicatorManager] No enabled indicators, cleared all');
+      console.info('[IndicatorManager] No enabled indicators, cleared all');
       return;
     }
 
@@ -81,10 +81,10 @@ export class IndicatorManager {
     // Step 3: 过滤出显示范围的指标数据
     const displayTimeSet = new Set(displayBars.map(b => b.time));
     const displayBarsWithIndicators = fullBarsWithIndicators.filter(b =>
-      displayTimeSet.has(b.time)
+      displayTimeSet.has(b.time),
     );
 
-    console.log('[IndicatorManager] 数据过滤:', {
+    console.info('[IndicatorManager] 数据过滤:', {
       fullData: fullBarsWithIndicators.length,
       displayData: displayBarsWithIndicators.length,
     });
@@ -94,7 +94,7 @@ export class IndicatorManager {
 
     if (paramsChanged) {
       // 参数变化：完全重建
-      console.log('[IndicatorManager] 🔧 参数变化，完全重建');
+      console.info('[IndicatorManager] 🔧 参数变化，完全重建');
       this.renderIndicators(displayBarsWithIndicators, enabledConfigs);
       this.lastConfigs = enabledConfigs;
     } else {
@@ -138,7 +138,7 @@ export class IndicatorManager {
     const newTypes = new Set(newConfigs.map(c => c.type));
     const oldTypes = new Set(this.lastConfigs.map(c => c.type));
 
-    console.log('[IndicatorManager] 📊 增量更新开始:', {
+    console.info('[IndicatorManager] 📊 增量更新开始:', {
       oldTypes: Array.from(oldTypes),
       newTypes: Array.from(newTypes),
       barsChanged,
@@ -147,7 +147,7 @@ export class IndicatorManager {
     // 1. 删除不再需要的指标
     for (const oldType of oldTypes) {
       if (!newTypes.has(oldType)) {
-        console.log(`[IndicatorManager] ➖ 删除指标: ${oldType}`);
+        console.info(`[IndicatorManager] ➖ 删除指标: ${oldType}`);
         this.removeIndicator(oldType);
       }
     }
@@ -155,26 +155,26 @@ export class IndicatorManager {
     // 2. 添加新的指标
     for (const config of newConfigs) {
       if (!oldTypes.has(config.type)) {
-        console.log(`[IndicatorManager] ➕ 添加指标: ${config.type}`);
+        console.info(`[IndicatorManager] ➕ 添加指标: ${config.type}`);
         this.renderSingleIndicator(bars, config);
       }
     }
 
     // 3. 更新现有指标的数据（只有当 K 线数据变化时才更新）
     if (barsChanged) {
-      console.log('[IndicatorManager] 📈 K线数据变化，更新现有指标');
+      console.info('[IndicatorManager] 📈 K线数据变化，更新现有指标');
       for (const config of newConfigs) {
         if (oldTypes.has(config.type)) {
-          console.log(`[IndicatorManager] 🔄 更新指标数据: ${config.type}`);
+          console.info(`[IndicatorManager] 🔄 更新指标数据: ${config.type}`);
           this.updateSeriesData(bars, [config]);
         }
       }
     } else {
-      console.log('[IndicatorManager] ⏭️ K线数据未变化，跳过更新');
+      console.info('[IndicatorManager] ⏭️ K线数据未变化，跳过更新');
     }
 
     this.lastConfigs = newConfigs;
-    console.log('[IndicatorManager] ✅ 增量更新完成');
+    console.info('[IndicatorManager] ✅ 增量更新完成');
   }
 
   /**
@@ -182,7 +182,7 @@ export class IndicatorManager {
    */
   private removeIndicator(type: string): void {
     const series = this.indicatorSeries.get(type);
-    if (!series) return;
+    if (!series) {return;}
 
     // 只删除系列，不删除 pane（避免图表布局变化）
     if (Array.isArray(series)) {
@@ -206,7 +206,7 @@ export class IndicatorManager {
 
     // ✅ 保留 pane 不删除，避免布局抖动
     // pane 会在下次需要时被重用（getOrCreatePane 会找到空闲的 pane）
-    console.log(`[IndicatorManager] ➖ 删除指标 ${type}（保留 pane）`);
+    console.info(`[IndicatorManager] ➖ 删除指标 ${type}（保留 pane）`);
   }
 
   /**
@@ -249,13 +249,13 @@ export class IndicatorManager {
    */
   private calculateIndicators(
     bars: KlineBar[],
-    configs: IndicatorConfig[]
+    configs: IndicatorConfig[],
   ): IndicatorKlineItem[] {
 
     // 初始化：所有bar都带空indicators对象
     const result: IndicatorKlineItem[] = bars.map(bar => ({
       ...bar,
-      indicators: {}
+      indicators: {},
     }));
 
     // 遍历启用的指标，逐个计算并合并
@@ -273,7 +273,7 @@ export class IndicatorManager {
   private calculateSingleIndicator(
     bars: KlineBar[],
     config: IndicatorConfig,
-    result: IndicatorKlineItem[]
+    result: IndicatorKlineItem[],
   ): void {
     try {
       switch (config.type) {
@@ -327,7 +327,7 @@ export class IndicatorManager {
               result[index].indicators.boll = {
                 upper: values.upper,
                 middle: values.middle,
-                lower: values.lower
+                lower: values.lower,
               };
             }
           });
@@ -357,7 +357,7 @@ export class IndicatorManager {
               result[index].indicators.macd = {
                 dif: values.dif,
                 dea: values.dea,
-                macd: values.macd
+                macd: values.macd,
               };
             }
           });
@@ -374,7 +374,7 @@ export class IndicatorManager {
               result[index].indicators.kdj = {
                 k: values.k,
                 d: values.d,
-                j: values.j
+                j: values.j,
               };
             }
           });
@@ -402,7 +402,7 @@ export class IndicatorManager {
     for (const config of configs) {
       const series = this.indicatorSeries.get(config.type);
       if (!series || series.length === 0) {
-        console.log(`[IndicatorManager] Series missing for ${config.type}`);
+        console.info(`[IndicatorManager] Series missing for ${config.type}`);
         return true;
       }
     }
@@ -439,7 +439,7 @@ export class IndicatorManager {
         const oldParamsStr = JSON.stringify(oldParams);
 
         if (newParamsStr !== oldParamsStr) {
-          console.log(`[IndicatorManager] 🔧 参数变化: ${type}`, {
+          console.info(`[IndicatorManager] 🔧 参数变化: ${type}`, {
             old: oldParams,
             new: newParams,
           });
@@ -605,7 +605,7 @@ export class IndicatorManager {
 
     periods.forEach((period, index) => {
       const maSeries = series[index];
-      if (!maSeries) return;
+      if (!maSeries) {return;}
 
       const maKey = `ma${config.params[period]}`;
       const maData: LineData[] = [];
@@ -633,7 +633,7 @@ export class IndicatorManager {
 
     periods.forEach((period, index) => {
       const emaSeries = series[index];
-      if (!emaSeries) return;
+      if (!emaSeries) {return;}
 
       const emaKey = `ema${config.params[period]}`;
       const emaData: LineData[] = [];
@@ -684,7 +684,7 @@ export class IndicatorManager {
    * 渲染指标到图表（完全重建）
    */
   private renderIndicators(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
-    console.log('[IndicatorManager] renderIndicators:', {
+    console.info('[IndicatorManager] renderIndicators:', {
       barsCount: bars.length,
       configsCount: configs.length,
       configs: configs.map(c => c.type),
@@ -697,7 +697,7 @@ export class IndicatorManager {
     const enabledConfigs = configs.filter(c => c.enabled);
 
     if (enabledConfigs.length === 0) {
-      console.log('[IndicatorManager] No enabled indicators');
+      console.info('[IndicatorManager] No enabled indicators');
       return;
     }
 
@@ -752,12 +752,12 @@ export class IndicatorManager {
 
         difData.push({
           time: bar.time as any,
-          value: dif
+          value: dif,
         });
 
         deaData.push({
           time: bar.time as any,
-          value: dea
+          value: dea,
         });
 
         histData.push({
@@ -801,7 +801,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('MACD', [difSeries, deaSeries, histSeries]);
 
-    console.log(`[IndicatorManager] MACD rendered: ${difData.length} points on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] MACD rendered: ${difData.length} points on pane ${paneIndex}`);
   }
 
   /**
@@ -852,7 +852,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('RSI', [rsiSeries]);
 
-    console.log(`[IndicatorManager] RSI rendered: ${rsiData.length} points on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] RSI rendered: ${rsiData.length} points on pane ${paneIndex}`);
   }
 
   /**
@@ -906,7 +906,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('KDJ', [kSeries, dSeries, jSeries]);
 
-    console.log(`[IndicatorManager] KDJ rendered: ${kData.length} points on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] KDJ rendered: ${kData.length} points on pane ${paneIndex}`);
   }
 
   /**
@@ -960,7 +960,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('BOLL', [upperSeries, middleSeries, lowerSeries]);
 
-    console.log(`[IndicatorManager] BOLL rendered: ${upperData.length} points on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] BOLL rendered: ${upperData.length} points on pane ${paneIndex}`);
   }
 
   /**
@@ -1004,7 +1004,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('MA', series);
 
-    console.log(`[IndicatorManager] MA rendered: ${series.length} lines on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] MA rendered: ${series.length} lines on pane ${paneIndex}`);
   }
 
   /**
@@ -1048,7 +1048,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('EMA', series);
 
-    console.log(`[IndicatorManager] EMA rendered: ${series.length} lines on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] EMA rendered: ${series.length} lines on pane ${paneIndex}`);
   }
 
   /**
@@ -1087,7 +1087,7 @@ export class IndicatorManager {
 
     this.indicatorSeries.set('VOL', [volSeries]);
 
-    console.log(`[IndicatorManager] VOL rendered: ${volData.length} points on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] VOL rendered: ${volData.length} points on pane ${paneIndex}`);
   }
 
   /**
@@ -1114,7 +1114,7 @@ export class IndicatorManager {
       if (!allPaneIndices.includes(i)) {
         // 找到空闲 pane，重用它
         this.indicatorPanes.set(config.type, i);
-        console.log(`[IndicatorManager] ♻️ 重用空闲 pane ${i} for ${config.type}`);
+        console.info(`[IndicatorManager] ♻️ 重用空闲 pane ${i} for ${config.type}`);
         return i;
       }
     }
@@ -1128,7 +1128,7 @@ export class IndicatorManager {
 
     this.indicatorPanes.set(config.type, newPaneIndex);
 
-    console.log(`[IndicatorManager] ➕ 创建新 pane ${newPaneIndex} for ${config.type}`);
+    console.info(`[IndicatorManager] ➕ 创建新 pane ${newPaneIndex} for ${config.type}`);
     return newPaneIndex;
   }
 
@@ -1150,7 +1150,7 @@ export class IndicatorManager {
           }
         });
 
-        console.log(`[IndicatorManager] Removed pane ${paneIndex} for ${type}`);
+        console.info(`[IndicatorManager] Removed pane ${paneIndex} for ${type}`);
       } catch (error) {
         console.warn(`Failed to remove pane for ${type}:`, error);
       }
@@ -1174,10 +1174,10 @@ export class IndicatorManager {
 
     // 移除副图 panes
     const panesToRemove = Array.from(this.indicatorPanes.entries());
-    panesToRemove.forEach(([type, paneIndex]) => {
+    panesToRemove.forEach(([type]) => {
       this.removePaneIfEmpty(type);
     });
 
-    console.log('[IndicatorManager] All indicators cleared');
+    console.info('[IndicatorManager] All indicators cleared');
   }
 }

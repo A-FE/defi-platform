@@ -44,7 +44,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
    */
   updateBalance: async () => {
     const { wallet } = get();
-    if (!wallet) return;
+    if (!wallet) {return;}
 
     try {
       // 这里会查询真实余额

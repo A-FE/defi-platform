@@ -63,7 +63,7 @@ export function AssetPanel() {
   const totalPnLPercent =
     assets.positions.reduce(
       (sum, pos) => sum + (pos.quantity * pos.costPrice * (pos.pnlPercent || 0)) / 100,
-      0
+      0,
     ) /
       (assets.totalValueUSD || 1) *
       100 || 0;

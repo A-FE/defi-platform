@@ -15,7 +15,7 @@ export class PriceGenerator {
   static generate(
     prevClose: number,
     trend: number,
-    trendStrength: number
+    trendStrength: number,
   ): Omit<KlineBar, 'time'> {
     // 1. Open = 上一根的 Close（K线连续性）
     const open = prevClose;
@@ -74,7 +74,7 @@ export class PriceGenerator {
     currentLow: number,
     currentVolume: number,
     trend: number,
-    trendStrength: number
+    trendStrength: number,
   ): Omit<KlineBar, 'time'> {
     // 1. Open 保持不变
     const open = currentOpen;

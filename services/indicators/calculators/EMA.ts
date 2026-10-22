@@ -9,7 +9,7 @@ import { SingleIndicatorValue } from '@/types/indicator';
  */
 export function calculateEMA(
   bars: KlineBar[],
-  period: number
+  period: number,
 ): SingleIndicatorValue[] {
   const result: SingleIndicatorValue[] = [];
 
@@ -51,7 +51,7 @@ export function calculateEMA(
  */
 export function calculateEMAFromValues(
   values: SingleIndicatorValue[],
-  period: number
+  period: number,
 ): SingleIndicatorValue[] {
   const result: SingleIndicatorValue[] = [];
 
@@ -92,7 +92,7 @@ export function calculateEMAFromValues(
  */
 export function calculateMultiEMA(
   bars: KlineBar[],
-  periods: number[]
+  periods: number[],
 ): Record<string, SingleIndicatorValue[]> {
   const result: Record<string, SingleIndicatorValue[]> = {};
 

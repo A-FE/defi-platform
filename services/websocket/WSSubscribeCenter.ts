@@ -136,7 +136,7 @@ export class WSSubscribeCenter {
    */
   unsubscribeSymbol(symbol: string, types?: WSMessageType[]): void {
     const symbolSubs = this.subscriptions.get(symbol);
-    if (!symbolSubs) return;
+    if (!symbolSubs) {return;}
 
     if (types && types.length > 0) {
       types.forEach((type) => symbolSubs.delete(type));

@@ -1,5 +1,4 @@
 import { IndicatorQueryParams, IndicatorKlineResponse, ApiResponse } from '@/types/api';
-import { mockCalculateIndicators } from '../mock/indicatorMock';
 
 /**
  * 查询 K 线 + 指标数据
@@ -8,7 +7,7 @@ import { mockCalculateIndicators } from '../mock/indicatorMock';
  * 生产模式：调用真实后端接口 /api/v1/klines/indicator
  */
 export async function fetchKlineWithIndicators(
-  params: IndicatorQueryParams
+  params: IndicatorQueryParams,
 ): Promise<IndicatorKlineResponse> {
   // 🔧 开发阶段：检查是否需要使用 mock
   const useMock = process.env.NODE_ENV === 'development' ||

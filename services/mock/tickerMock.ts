@@ -24,8 +24,8 @@ export class TickerMockService {
     this.basePrice = price;
 
     // 更新 24h 高低价
-    if (price > this.high24h) this.high24h = price;
-    if (price < this.low24h) this.low24h = price;
+    if (price > this.high24h) {this.high24h = price;}
+    if (price < this.low24h) {this.low24h = price;}
 
     return {
       symbol,

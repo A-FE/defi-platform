@@ -21,6 +21,6 @@ export function useEnabledIndicators(): IndicatorConfig[] {
   // 缓存过滤结果，避免不必要的数组重新生成
   return useMemo(
     () => Object.values(configs).filter((c) => c.enabled),
-    [configs]
+    [configs],
   );
 }

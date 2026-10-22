@@ -9,7 +9,7 @@ import { SingleIndicatorValue } from '@/types/indicator';
  */
 export function calculateMA(
   bars: KlineBar[],
-  period: number
+  period: number,
 ): SingleIndicatorValue[] {
   const result: SingleIndicatorValue[] = [];
 
@@ -39,7 +39,7 @@ export function calculateMA(
  */
 export function calculateMultiMA(
   bars: KlineBar[],
-  periods: number[]
+  periods: number[],
 ): Record<string, SingleIndicatorValue[]> {
   const result: Record<string, SingleIndicatorValue[]> = {};
 

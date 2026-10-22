@@ -18,7 +18,7 @@ export function WalletButton() {
 
   // 格式化地址（显示前 4 位和后 4 位）
   const formatAddress = (address: string) => {
-    if (!address) return '';
+    if (!address) {return '';}
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 

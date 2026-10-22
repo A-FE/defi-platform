@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useDepthStore } from '@/stores';
 import { DepthItem } from '@/types/market';
 
@@ -24,7 +24,7 @@ export function OrderBook({ symbol, maxLevels = 15 }: OrderBookProps) {
   }, [symbol, subscribe, unsubscribe]);
 
   // 渲染节流
-  const { renderTrigger, maxTotal } = useDepthRender(bids, asks);
+  const { maxTotal } = useDepthRender(bids, asks);
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 h-[600px] flex flex-col">
@@ -124,7 +124,7 @@ const DepthRow = React.memo(
         </div>
       </div>
     );
-  }
+  },
 );
 
 DepthRow.displayName = 'DepthRow';
@@ -149,13 +149,8 @@ function useDepthRender(bids: DepthItem[], asks: DepthItem[]) {
   const pendingRenderRef = useRef(false);
   const rafIdRef = useRef<number | null>(null);
 
-  // 监听深度变化，调度渲染
-  useEffect(() => {
-    scheduleRender();
-  }, [bids, asks]);
-
-  const scheduleRender = () => {
-    if (pendingRenderRef.current) return;
+  const scheduleRender = useCallback(() => {
+    if (pendingRenderRef.current) {return;}
 
     pendingRenderRef.current = true;
     rafIdRef.current = requestAnimationFrame(() => {
@@ -163,7 +158,12 @@ function useDepthRender(bids: DepthItem[], asks: DepthItem[]) {
       pendingRenderRef.current = false;
       rafIdRef.current = null;
     });
-  };
+  }, []);
+
+  // 监听深度变化，调度渲染
+  useEffect(() => {
+    scheduleRender();
+  }, [bids, asks, scheduleRender]);
 
   // 计算最大累计量
   const maxTotal = useMemo(() => {

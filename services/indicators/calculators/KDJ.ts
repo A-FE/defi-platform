@@ -13,7 +13,7 @@ export function calculateKDJ(
   bars: KlineBar[],
   period: number = 9,
   kPeriod: number = 3,
-  dPeriod: number = 3
+  dPeriod: number = 3,
 ): MultiIndicatorValue[] {
   const result: MultiIndicatorValue[] = [];
 

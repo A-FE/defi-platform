@@ -14,9 +14,9 @@ export function calculateMACD(
   bars: KlineBar[],
   fastPeriod: number = 12,
   slowPeriod: number = 26,
-  signalPeriod: number = 9
+  signalPeriod: number = 9,
 ): MultiIndicatorValue[] {
-  console.log('[MACD Calculator] Input bars:', {
+  console.info('[MACD Calculator] Input bars:', {
     barsLength: bars.length,
     firstBarTime: bars[0]?.time,
     lastBarTime: bars[bars.length - 1]?.time,

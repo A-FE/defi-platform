@@ -118,7 +118,7 @@ function updateDepthSide(
   current: DepthItem[],
   updates: DepthItem[] | [number, number][],
   order: 'asc' | 'desc',
-  changedPrices: Set<number>
+  changedPrices: Set<number>,
 ): DepthItem[] {
   const map = new Map<number, number>();
 

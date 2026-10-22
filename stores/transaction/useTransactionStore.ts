@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { TransactionInfo, TransactionType, TransactionStatus } from '@/types/market';
+import { TransactionInfo, TransactionStatus } from '@/types/market';
 
 interface TransactionState {
   transactions: TransactionInfo[];
@@ -50,7 +50,7 @@ export const useTransactionStore = create<TransactionState>()(
       updateTransactionStatus: (id, status) => {
         set((state) => ({
           transactions: state.transactions.map((tx) =>
-            tx.id === id ? { ...tx, status } : tx
+            tx.id === id ? { ...tx, status } : tx,
           ),
         }));
       },
@@ -79,6 +79,6 @@ export const useTransactionStore = create<TransactionState>()(
     {
       name: 'transaction-history',
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+    },
+  ),
 );

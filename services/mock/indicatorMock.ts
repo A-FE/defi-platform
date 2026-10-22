@@ -14,9 +14,9 @@ import * as calculators from '../indicators/calculators';
  */
 export function mockCalculateIndicators(
   bars: IndicatorKlineItem[],  // ✅ 改为统一类型
-  params: IndicatorQueryParams
+  params: IndicatorQueryParams,
 ): IndicatorKlineItem[] {
-  console.log('[mockCalculateIndicators] Input:', {
+  console.info('[mockCalculateIndicators] Input:', {
     barsCount: bars.length,
     indicatorsCount: params.indicators.length,
     indicators: params.indicators.map(i => `${i.name}(${i.params.join(',')})`),
@@ -61,7 +61,7 @@ export function mockCalculateIndicators(
             }
           });
 
-          console.log(`[mockCalculateIndicators] MACD calculated: ${macdData.length} points`);
+          console.info(`[mockCalculateIndicators] MACD calculated: ${macdData.length} points`);
           break;
         }
 
@@ -76,7 +76,7 @@ export function mockCalculateIndicators(
             }
           });
 
-          console.log(`[mockCalculateIndicators] RSI calculated: ${rsiData.length} points`);
+          console.info(`[mockCalculateIndicators] RSI calculated: ${rsiData.length} points`);
           break;
         }
 
@@ -95,7 +95,7 @@ export function mockCalculateIndicators(
             }
           });
 
-          console.log(`[mockCalculateIndicators] KDJ calculated: ${kdjData.length} points`);
+          console.info(`[mockCalculateIndicators] KDJ calculated: ${kdjData.length} points`);
           break;
         }
 
@@ -114,22 +114,22 @@ export function mockCalculateIndicators(
             }
           });
 
-          console.log(`[mockCalculateIndicators] BOLL calculated: ${bollData.length} points`);
+          console.info(`[mockCalculateIndicators] BOLL calculated: ${bollData.length} points`);
           break;
         }
 
         case 'ma': {
           const periods = indicator.params;
-          console.log('[mockCalculateIndicators] MA params:', periods);
+          console.info('[mockCalculateIndicators] MA params:', periods);
 
           const maData = calculators.calculateMultiMA(simpleBars, periods);
-          console.log('[mockCalculateIndicators] MA data keys:', Object.keys(maData));
+          console.info('[mockCalculateIndicators] MA data keys:', Object.keys(maData));
 
           // maData 结构：{ MA5: [{time, value}], MA10: [...] }
           // ✅ 转换为小写键：ma5, ma10, ...
           Object.entries(maData).forEach(([key, data]) => {
             const lowercaseKey = key.toLowerCase(); // MA5 -> ma5
-            console.log(`[mockCalculateIndicators] Processing ${key} -> ${lowercaseKey}, points: ${data.length}`);
+            console.info(`[mockCalculateIndicators] Processing ${key} -> ${lowercaseKey}, points: ${data.length}`);
             data.forEach((point: any) => {
               const matchedBar = result.find(r => r.time === point.time);
               if (matchedBar) {
@@ -141,8 +141,8 @@ export function mockCalculateIndicators(
             });
           });
 
-          console.log(`[mockCalculateIndicators] MA calculated: ${periods.length} lines`);
-          console.log('[mockCalculateIndicators] Sample result:', result.slice(-3).map(r => ({
+          console.info(`[mockCalculateIndicators] MA calculated: ${periods.length} lines`);
+          console.info('[mockCalculateIndicators] Sample result:', result.slice(-3).map(r => ({
             time: r.time,
             ma: r.indicators.ma,
           })));
@@ -168,7 +168,7 @@ export function mockCalculateIndicators(
             });
           });
 
-          console.log(`[mockCalculateIndicators] EMA calculated: ${periods.length} lines`);
+          console.info(`[mockCalculateIndicators] EMA calculated: ${periods.length} lines`);
           break;
         }
 
@@ -178,7 +178,7 @@ export function mockCalculateIndicators(
             bar.indicators.vol = { volume: bar.volume };
           });
 
-          console.log(`[mockCalculateIndicators] VOL mapped: ${result.length} points`);
+          console.info(`[mockCalculateIndicators] VOL mapped: ${result.length} points`);
           break;
         }
 
@@ -190,7 +190,7 @@ export function mockCalculateIndicators(
     }
   });
 
-  // console.log('[mockCalculateIndicators] Output:', result);
+  // console.info('[mockCalculateIndicators] Output:', result);
 
   return result;
 }

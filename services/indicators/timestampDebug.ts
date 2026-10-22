@@ -7,7 +7,7 @@ export function diagnoseTimestamps() {
   console.group('🕐 时间戳诊断');
 
   // 1. 检查当前图表的 K 线数据
-  console.log('1️⃣ 检查 K 线数据时间戳格式');
+  console.info('1️⃣ 检查 K 线数据时间戳格式');
 
   // 模拟从 store 获取数据
   const sampleBar = {
@@ -15,7 +15,7 @@ export function diagnoseTimestamps() {
     close: 50000,
   };
 
-  console.log('K 线样本:', {
+  console.info('K 线样本:', {
     time: sampleBar.time,
     timeType: typeof sampleBar.time,
     isInteger: Number.isInteger(sampleBar.time),
@@ -24,14 +24,14 @@ export function diagnoseTimestamps() {
   });
 
   // 2. 测试 lightweight-charts 的时间格式要求
-  console.log('2️⃣ lightweight-charts 时间格式要求');
-  console.log('支持的格式:');
-  console.log('- UTC 时间戳（秒）: 1729425600');
-  console.log('- 日期字符串: "2024-10-20"');
-  console.log('- 不支持毫秒时间戳!');
+  console.info('2️⃣ lightweight-charts 时间格式要求');
+  console.info('支持的格式:');
+  console.info('- UTC 时间戳（秒）: 1729425600');
+  console.info('- 日期字符串: "2024-10-20"');
+  console.info('- 不支持毫秒时间戳!');
 
   // 3. 检查时间戳转换
-  console.log('3️⃣ 时间戳转换测试');
+  console.info('3️⃣ 时间戳转换测试');
 
   const testTime = 1787274000;
   const conversions = {
@@ -47,11 +47,11 @@ export function diagnoseTimestamps() {
   console.table(conversions);
 
   // 4. 检查时间戳连续性
-  console.log('4️⃣ 检查时间戳连续性');
+  console.info('4️⃣ 检查时间戳连续性');
 
   const times = [1787274000, 1787277600, 1787281200];
   const gaps = times.map((t, i) => {
-    if (i === 0) return null;
+    if (i === 0) {return null;}
     const gap = t - times[i - 1];
     return {
       from: new Date(times[i - 1] * 1000).toLocaleTimeString(),
@@ -70,5 +70,5 @@ export function diagnoseTimestamps() {
 // 自动执行诊断
 if (typeof window !== 'undefined') {
   (window as any).__diagnoseTimestamps__ = diagnoseTimestamps;
-  console.log('💡 提示：在控制台执行 window.__diagnoseTimestamps__() 来诊断时间戳');
+  console.info('💡 提示：在控制台执行 window.__diagnoseTimestamps__() 来诊断时间戳');
 }

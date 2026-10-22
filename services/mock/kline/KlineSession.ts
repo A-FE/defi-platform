@@ -46,7 +46,7 @@ export class KlineSession {
       this.trend = trendParams.trend;
       this.trendStrength = trendParams.trendStrength;
     } else {
-      console.log('[KlineSession] 保持价格连续性，基于现有 lastBar:', this.lastBar?.close);
+      console.info('[KlineSession] 保持价格连续性，基于现有 lastBar:', this.lastBar?.close);
     }
 
     // 生成历史数据
@@ -74,7 +74,7 @@ export class KlineSession {
     // 验证时间戳的有效性
     if (this.lastBar && !TimeAlignmentUtil.validateBarTime(barTime, this.lastBar.time)) {
       console.error(
-        `[KlineSession] Invalid bar time: ${barTime} < lastBar.time: ${this.lastBar.time}`
+        `[KlineSession] Invalid bar time: ${barTime} < lastBar.time: ${this.lastBar.time}`,
       );
       throw new Error(`Invalid bar time: ${barTime} < lastBar.time: ${this.lastBar.time}`);
     }
@@ -103,7 +103,7 @@ export class KlineSession {
       this.lastBar.low,
       this.lastBar.volume,
       this.trend,
-      this.trendStrength
+      this.trendStrength,
     );
 
     const bar: KlineBar = {
@@ -146,7 +146,7 @@ export class KlineSession {
     this.lastBar = bar;
     // 同时更新 basePrice，确保后续生成基于正确的价格
     this.basePrice = bar.close;
-    console.log(`[KlineSession] setLastBar: close=${bar.close}, time=${bar.time}`);
+    console.info(`[KlineSession] setLastBar: close=${bar.close}, time=${bar.time}`);
   }
 
   /**
@@ -166,7 +166,7 @@ export class KlineSession {
     return {
       symbol: this.symbol,
       interval: this.interval,
-      hasLastBar: !!this.lastBar,
+      hasLastBar: Boolean(this.lastBar),
       lastBarTime: this.lastBar?.time,
       trend: this.trend,
       trendStrength: this.trendStrength,

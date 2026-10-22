@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTickerStore } from '@/stores';
 
 interface PriceTickerProps {
@@ -14,7 +14,7 @@ export function PriceTicker({ symbol }: PriceTickerProps) {
   const { tickers, subscribe } = useTickerStore();
   const ticker = tickers[symbol];
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | null>(null);
-  const [prevPrice, setPrevPrice] = useState<number>(0);
+  const prevPriceRef = useRef<number>(0);
 
   // 订阅 Ticker 数据
   useEffect(() => {
@@ -24,15 +24,18 @@ export function PriceTicker({ symbol }: PriceTickerProps) {
 
   // 监听价格变化，触发颜色变化
   useEffect(() => {
-    if (!ticker) return;
+    if (!ticker) {return;}
 
-    if (ticker.price > prevPrice) {
+    const currentPrice = ticker.price;
+    const prevPrice = prevPriceRef.current;
+
+    if (currentPrice > prevPrice && prevPrice > 0) {
       setPriceDirection('up');
-    } else if (ticker.price < prevPrice) {
+    } else if (currentPrice < prevPrice && prevPrice > 0) {
       setPriceDirection('down');
     }
 
-    setPrevPrice(ticker.price);
+    prevPriceRef.current = currentPrice;
 
     // 300ms 后恢复默认颜色
     const timer = setTimeout(() => setPriceDirection(null), 300);

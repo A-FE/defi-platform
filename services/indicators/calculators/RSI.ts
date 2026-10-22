@@ -9,7 +9,7 @@ import { SingleIndicatorValue } from '@/types/indicator';
  */
 export function calculateRSI(
   bars: KlineBar[],
-  period: number = 14
+  period: number = 14,
 ): SingleIndicatorValue[] {
   const result: SingleIndicatorValue[] = [];
 

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createChart, CandlestickSeries } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi } from 'lightweight-charts';
 import { IndicatorManager } from '@/services/indicators/IndicatorManager';
 
 /**
@@ -14,7 +13,7 @@ export function useChartInit() {
   const managerRef = useRef<IndicatorManager | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {return;}
 
     try {
       // 创建图表
@@ -51,7 +50,7 @@ export function useChartInit() {
       // 初始化指标管理器
       managerRef.current = new IndicatorManager(chart);
 
-      console.log('[useChartInitialization] Chart initialized');
+      console.info('[useChartInitialization] Chart initialized');
 
       // 响应式处理
       const handleResize = () => {

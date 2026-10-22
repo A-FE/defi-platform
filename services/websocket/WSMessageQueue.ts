@@ -29,7 +29,7 @@ export class WSMessageQueue {
     // 深度增量更新：只保留最新一条，丢弃中间积压
     if (message.type === 'depth_update') {
       const existingIndex = this.queue.findIndex(
-        (m) => m.type === 'depth_update' && m.symbol === message.symbol
+        (m) => m.type === 'depth_update' && m.symbol === message.symbol,
       );
 
       if (existingIndex !== -1) {
@@ -47,7 +47,7 @@ export class WSMessageQueue {
    * 处理队列
    */
   private async processQueue(): Promise<void> {
-    if (this.isProcessing || this.queue.length === 0) return;
+    if (this.isProcessing || this.queue.length === 0) {return;}
 
     this.isProcessing = true;
 

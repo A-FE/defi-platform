@@ -19,7 +19,7 @@ export function calculateVOL(bars: KlineBar[]): SingleIndicatorValue[] {
  * @returns 成交量涨跌数据
  */
 export function calculateVOLWithTrend(
-  bars: KlineBar[]
+  bars: KlineBar[],
 ): Array<{ time: number; value: number; isUp: boolean }> {
   return bars.map((bar, index) => ({
     time: bar.time,

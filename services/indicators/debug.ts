@@ -43,7 +43,7 @@ export function diagnoseIndicators() {
 
   const testBars = generateTestData(100);
 
-  console.log('📊 测试数据:', {
+  console.info('📊 测试数据:', {
     count: testBars.length,
     firstBar: {
       time: testBars[0].time,
@@ -66,7 +66,7 @@ export function diagnoseIndicators() {
   const ma5 = calculateMA(testBars, 5);
   const ma20 = calculateMA(testBars, 20);
 
-  console.log('MA5 结果:', {
+  console.info('MA5 结果:', {
     dataPoints: ma5.length,
     firstPoint: ma5[0],
     lastPoint: ma5[ma5.length - 1],
@@ -74,7 +74,7 @@ export function diagnoseIndicators() {
     allSame: ma5.every((d, i, arr) => i === 0 || Math.abs(d.value - arr[i - 1].value) < 0.01),
   });
 
-  console.log('MA20 结果:', {
+  console.info('MA20 结果:', {
     dataPoints: ma20.length,
     firstPoint: ma20[0],
     lastPoint: ma20[ma20.length - 1],
@@ -88,7 +88,7 @@ export function diagnoseIndicators() {
   console.group('📈 EMA 指标测试');
   const ema12 = calculateEMA(testBars, 12);
 
-  console.log('EMA12 结果:', {
+  console.info('EMA12 结果:', {
     dataPoints: ema12.length,
     firstPoint: ema12[0],
     lastPoint: ema12[ema12.length - 1],
@@ -102,7 +102,7 @@ export function diagnoseIndicators() {
   console.group('📈 BOLL 指标测试');
   const boll = calculateBOLL(testBars, 20, 2);
 
-  console.log('BOLL 结果:', {
+  console.info('BOLL 结果:', {
     dataPoints: boll.length,
     firstPoint: boll[0],
     lastPoint: boll[boll.length - 1],
@@ -124,7 +124,7 @@ export function diagnoseIndicators() {
     }
   }
 
-  console.log('时间戳连续性:', {
+  console.info('时间戳连续性:', {
     totalPoints: ma20.length,
     gaps: timeGaps.length,
     sampleGaps: timeGaps.slice(0, 5),

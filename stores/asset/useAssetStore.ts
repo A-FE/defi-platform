@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { AssetState } from '@/types/store';
 import { AssetData, Position } from '@/types/market';
-import { TOKENS } from '@/constants/tokens';
 
 /**
  * 防抖函数
@@ -65,7 +64,7 @@ export const useAssetStore = create<AssetState>((set, get) => ({
 
       const totalValue = positions.reduce(
         (sum, pos) => sum + (pos.currentPrice || 0) * pos.quantity,
-        0
+        0,
       );
 
       const assets: AssetData = {
@@ -87,7 +86,7 @@ export const useAssetStore = create<AssetState>((set, get) => ({
    */
   calculatePnL: () => {
     const { assets } = get();
-    if (!assets) return;
+    if (!assets) {return;}
 
     set({ isCalculating: true });
 
@@ -111,7 +110,7 @@ export const useAssetStore = create<AssetState>((set, get) => ({
 
       const totalValue = updatedPositions.reduce(
         (sum, pos) => sum + (pos.currentPrice || 0) * pos.quantity,
-        0
+        0,
       );
 
       set({

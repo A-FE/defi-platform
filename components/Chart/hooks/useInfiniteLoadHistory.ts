@@ -52,12 +52,12 @@ export function useInfiniteLoadHistory({
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
     const threshold = maxRequirement + SAFETY_BUFFER;
 
-    console.log('[useInfiniteLoadHistory] 📏 计算触发阈值:', {
+    console.info('[useInfiniteLoadHistory] 📏 计算触发阈值:', {
       maxRequirement,
       safetyBuffer: SAFETY_BUFFER,
       threshold,
       indicators: enabledIndicators.map(ind =>
-        `${ind.type}(${Object.values(ind.params).join(',')})`
+        `${ind.type}(${Object.values(ind.params).join(',')})`,
       ),
     });
 
@@ -89,7 +89,7 @@ export function useInfiniteLoadHistory({
 
         const targetPrice = oldestCurrentBar.open;
 
-        console.log(`[useInfiniteLoadHistory] 当前最早K线: time=${oldestCurrentBar.time}, open=${oldestCurrentBar.open}`);
+        console.info(`[useInfiniteLoadHistory] 当前最早K线: time=${oldestCurrentBar.time}, open=${oldestCurrentBar.open}`);
 
         // 获取历史数据
         const olderTime = oldestTimeRef.current;
@@ -105,7 +105,7 @@ export function useInfiniteLoadHistory({
           const lastOlderBar = olderBars[olderBars.length - 1];
           const priceAdjustment = targetPrice / lastOlderBar.close;
 
-          console.log(`[useInfiniteLoadHistory] 价格调整: ${lastOlderBar.close} -> ${targetPrice}, 比例: ${priceAdjustment}`);
+          console.info(`[useInfiniteLoadHistory] 价格调整: ${lastOlderBar.close} -> ${targetPrice}, 比例: ${priceAdjustment}`);
 
           const adjustedOlderBars = olderBars.map((bar) => ({
             ...bar,
@@ -122,7 +122,7 @@ export function useInfiniteLoadHistory({
           // ✅ 转换为图表格式（只用于图表渲染，OHLC 即可）
           const formattedData = allBars.map((bar) => {
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
-            if (isNaN(time)) return null;
+            if (isNaN(time)) {return null;}
 
             return {
               time: time as any,
@@ -139,10 +139,10 @@ export function useInfiniteLoadHistory({
           // ✅ 通知外部更新完整数据（包含 volume）
           onDataLoaded(allBars);
 
-          console.log(`[useInfiniteLoadHistory] 加载了 ${olderBars.length} 根历史K线`);
+          console.info(`[useInfiniteLoadHistory] 加载了 ${olderBars.length} 根历史K线`);
         } else {
           hasMoreHistoryRef.current = false;
-          console.log('[useInfiniteLoadHistory] 没有更多历史数据');
+          console.info('[useInfiniteLoadHistory] 没有更多历史数据');
         }
       } catch (error) {
         console.error('[useInfiniteLoadHistory] 加载失败:', error);
@@ -150,7 +150,7 @@ export function useInfiniteLoadHistory({
         setIsLoadingMore(false);
       }
     },
-    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded, currentKlineData]
+    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded, currentKlineData],
   );
 
   // ========== 重置状态 ==========
@@ -162,16 +162,16 @@ export function useInfiniteLoadHistory({
 
   // ========== 滚动监听 ==========
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current) {return;}
 
     const chart = chartRef.current;
     const timeScale = chart.timeScale();
 
     const handleVisibleRangeChange = () => {
       const logicalRange = timeScale.getVisibleLogicalRange();
-      if (!logicalRange) return;
+      if (!logicalRange) {return;}
 
-      console.log('[useInfiniteLoadHistory] 📊 可视范围变化:', {
+      console.info('[useInfiniteLoadHistory] 📊 可视范围变化:', {
         from: logicalRange.from.toFixed(2),
         to: logicalRange.to.toFixed(2),
         triggerThreshold,
@@ -181,7 +181,7 @@ export function useInfiniteLoadHistory({
       // ✅ 使用动态阈值：基于需求最大的指标
       // 当用户滚动到左侧边界附近时，自动加载更多历史数据
       if (logicalRange.from < triggerThreshold) {
-        console.log('[useInfiniteLoadHistory] 🔄 触发历史数据加载');
+        console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载');
         loadMoreHistory();
       }
     };

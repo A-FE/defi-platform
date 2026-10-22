@@ -3,8 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Suspense, useState } from 'react';
 import TradingLayout from '@/components/Layout/TradingLayout';
-import PriceTicker from '@/components/Ticker/PriceTicker';
-import { MARKET_SYMBOLS, DEFAULT_SYMBOL } from '@/constants/api';
+import { DEFAULT_SYMBOL } from '@/constants/api';
 
 // 动态导入大组件（代码分割）
 const KlineChart = dynamic(() => import('@/components/Chart/KlineChart'), {
@@ -21,7 +20,7 @@ const OrderBook = dynamic(() => import('@/components/OrderBook/OrderBook'), {
  * 行情页面 - K线图和订单簿
  */
 export default function MarketPage() {
-  const [selectedSymbol, setSelectedSymbol] = useState(DEFAULT_SYMBOL);
+  const [selectedSymbol] = useState(DEFAULT_SYMBOL);
 
   return (
     <TradingLayout>

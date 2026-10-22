@@ -49,7 +49,7 @@ export const useKlineStore = create<KlineState>()(
                           !process.env.NEXT_PUBLIC_KLINE_API_ENABLED;
 
           if (useMock) {
-            console.log('[DEV MODE] fetchKlines:', {
+            console.info('[DEV MODE] fetchKlines:', {
               symbol,
               interval,
               from: new Date(from * 1000).toISOString(),
@@ -64,7 +64,7 @@ export const useKlineStore = create<KlineState>()(
             // 这样切换周期时价格能保持连续性
             const existingLastBar = session.getLastBar();
             if (existingLastBar) {
-              console.log('[fetchKlines] 复用现有 Session 价格:', existingLastBar.close);
+              console.info('[fetchKlines] 复用现有 Session 价格:', existingLastBar.close);
             }
 
             // 使用 before 参数生成指定时间范围之前的历史数据
@@ -79,7 +79,7 @@ export const useKlineStore = create<KlineState>()(
           // 🚀 生产模式：调用真实后端接口
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/v1/klines?` +
-            `symbol=${symbol}&interval=${interval}&from=${from}&to=${to}`
+            `symbol=${symbol}&interval=${interval}&from=${from}&to=${to}`,
           );
 
           if (!response.ok) {
@@ -111,7 +111,7 @@ export const useKlineStore = create<KlineState>()(
         // 这样第一次推送就能从历史数据的最后价格平滑过渡
         session.setLastBar(lastBar);
 
-        console.log('[subscribeBars] 初始化 Session lastBar:', {
+        console.info('[subscribeBars] 初始化 Session lastBar:', {
           symbol,
           interval,
           lastBarClose: lastBar.close,
@@ -199,11 +199,11 @@ export const useKlineStore = create<KlineState>()(
         const cacheKey = `${symbol}_${interval}`;
         const cached = get().cache[cacheKey];
 
-        if (!cached) return null;
+        if (!cached) {return null;}
 
         // 缓存有效期：5 分钟
         const isExpired = Date.now() - cached.timestamp > 5 * 60 * 1000;
-        if (isExpired) return null;
+        if (isExpired) {return null;}
 
         // 确保 time 字段是 number 类型（防止序列化问题）
         const bars = cached.bars.map((bar) => ({
@@ -234,6 +234,6 @@ export const useKlineStore = create<KlineState>()(
       name: 'kline-cache',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({ cache: state.cache }), // 只持久化缓存
-    }
-  )
+    },
+  ),
 );

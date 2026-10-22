@@ -23,8 +23,6 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
   const [slippage, setSlippage] = useState(0.5);
   const [isSwapping, setIsSwapping] = useState(false);
 
-  const fromTokenInfo = getTokenBySymbol(fromToken);
-  const toTokenInfo = getTokenBySymbol(toToken);
 
   // 模拟汇率计算
   const calculateToAmount = (amount: string) => {
@@ -88,7 +86,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
       // 显示成功通知
       notify.success(
         '交易成功！',
-        `${fromAmount} ${fromToken} → ${toAmount} ${toToken}`
+        `${fromAmount} ${fromToken} → ${toAmount} ${toToken}`,
       );
 
       // 清空输入

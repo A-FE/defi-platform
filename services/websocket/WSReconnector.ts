@@ -33,11 +33,11 @@ export class WSReconnector {
     // 指数退避：1s, 2s, 4s, 8s（上限 8s）
     const delay = Math.min(
       this.initialDelay * Math.pow(2, this.reconnectAttempts - 1),
-      this.maxDelay
+      this.maxDelay,
     );
 
     console.warn(
-      `[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+      `[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
     );
 
     this.reconnectTimer = setTimeout(() => {

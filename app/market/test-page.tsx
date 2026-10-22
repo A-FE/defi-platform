@@ -3,8 +3,8 @@
 import { MARKET_SYMBOLS, KLINE_INTERVALS } from '@/constants/api';
 
 export default function TestPage() {
-  console.log('MARKET_SYMBOLS:', MARKET_SYMBOLS);
-  console.log('KLINE_INTERVALS:', KLINE_INTERVALS);
+  console.info('MARKET_SYMBOLS:', MARKET_SYMBOLS);
+  console.info('KLINE_INTERVALS:', KLINE_INTERVALS);
 
   return (
     <div className="p-8 text-white">

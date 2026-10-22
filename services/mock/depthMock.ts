@@ -25,7 +25,7 @@ export class DepthMockService {
   /**
    * 生成订单簿增量更新
    */
-  generateUpdate(symbol: string): DepthData {
+  generateUpdate(_symbol: string): DepthData {
     // 随机更新 2-5 个档位
     const updateCount = 2 + Math.floor(Math.random() * 4);
     const bids: DepthItem[] = [];

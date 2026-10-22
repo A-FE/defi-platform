@@ -45,18 +45,18 @@ export function useKlineDataLoader({
 
   const loadKlineData = useCallback(
     async (interval: KlineInterval) => {
-      if (!seriesRef.current) return;
+      if (!seriesRef.current) {return;}
 
       // ⚠️ 防止重复加载同一周期的数据
       if (isReloadingRef.current && lastLoadedIntervalRef.current === interval) {
-        console.log('[loadKlineData] ⚠️ 已在加载中，跳过重复请求:', interval);
+        console.info('[loadKlineData] ⚠️ 已在加载中，跳过重复请求:', interval);
         return;
       }
 
       isReloadingRef.current = true;
       lastLoadedIntervalRef.current = interval;
 
-      console.log('[loadKlineData] 🔄 开始加载:', {
+      console.info('[loadKlineData] 🔄 开始加载:', {
         interval,
         symbol,
         timestamp: Date.now(),
@@ -69,13 +69,13 @@ export function useKlineDataLoader({
         // 基础数据量 = 显示数据量 + (指标最大需求 * 2)
         const totalDataSize = Math.max(
           CHART_DATA_CONFIG.BASE_DATA_SIZE,
-          calculateTotalDataSize(CHART_DATA_CONFIG.DISPLAY_DATA_SIZE, enabledIndicators)
+          calculateTotalDataSize(CHART_DATA_CONFIG.DISPLAY_DATA_SIZE, enabledIndicators),
         );
 
         // ✅ 缓存到 ref，供 WebSocket 回调使用
         totalDataSizeRef.current = totalDataSize;
 
-        console.log('[loadKlineData] 📊 数据量计算:', {
+        console.info('[loadKlineData] 📊 数据量计算:', {
           显示数据量: CHART_DATA_CONFIG.DISPLAY_DATA_SIZE,
           启用指标数: enabledIndicators.length,
           总加载量: totalDataSize,
@@ -99,14 +99,14 @@ export function useKlineDataLoader({
         // 记录最旧时间戳
         onOldestTimeUpdate(allBars[0].time);
 
-        console.log('[loadKlineData] 数据加载完成:', {
+        console.info('[loadKlineData] 数据加载完成:', {
           total: allBars.length,
         });
 
         // 渲染 K 线到图表（渲染全部数据）
         const data = allBars.map((bar) => {
           const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
-          if (isNaN(time)) throw new Error(`Invalid time: ${bar.time}`);
+          if (isNaN(time)) {throw new Error(`Invalid time: ${bar.time}`);}
 
           return {
             time: time as any,
@@ -119,7 +119,7 @@ export function useKlineDataLoader({
 
         seriesRef.current.setData(data);
 
-        console.log(`[loadKlineData] 加载完成: 总计 ${allBars.length} 根 K 线`);
+        console.info(`[loadKlineData] 加载完成: 总计 ${allBars.length} 根 K 线`);
 
         // 设置可视范围：初始只显示最新 50 根
         setTimeout(() => {
@@ -132,7 +132,7 @@ export function useKlineDataLoader({
               from: visibleStart as any,
               to: visibleEnd as any,
             });
-            console.log('[loadKlineData] 设置可见范围:', {
+            console.info('[loadKlineData] 设置可见范围:', {
               from: visibleStart,
               to: visibleEnd,
               count: CHART_DATA_CONFIG.DISPLAY_DATA_SIZE,
@@ -158,16 +158,16 @@ export function useKlineDataLoader({
           volume: lastFullBar.volume, // ✅ 保留 volume 字段
         };
 
-        console.log('[loadKlineData] WebSocket 订阅基准价格:', {
+        console.info('[loadKlineData] WebSocket 订阅基准价格:', {
           原始: lastFullBar.close,
           调整后: adjustedLastBar.close,
         });
 
         const unsubscribe = subscribeBars(symbol, interval, adjustedLastBar, (bar) => {
-          if (!seriesRef.current || isReloadingRef.current) return;
+          if (!seriesRef.current || isReloadingRef.current) {return;}
 
           const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
-          if (isNaN(time)) return;
+          if (isNaN(time)) {return;}
 
           const seriesData = seriesRef.current.data();
           if (seriesData.length > 0) {
@@ -243,7 +243,7 @@ export function useKlineDataLoader({
         isReloadingRef.current = false;
       }
     },
-    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef, onDataLoaded, onDisplayDataLoaded, onOldestTimeUpdate, enabledIndicators]
+    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef, onDataLoaded, onDisplayDataLoaded, onOldestTimeUpdate, enabledIndicators],
   );
 
   const unsubscribe = useCallback(() => {

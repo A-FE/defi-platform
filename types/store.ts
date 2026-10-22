@@ -1,5 +1,4 @@
-import { KlineInterval, KlineBar } from './market';
-import { DepthItem, TickerData, AssetData } from './market';
+import { KlineInterval, KlineBar, DepthItem, TickerData, AssetData } from './market';
 import { WalletInfo } from './solana';
 
 /**

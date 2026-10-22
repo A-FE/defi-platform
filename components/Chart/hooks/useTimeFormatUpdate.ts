@@ -9,10 +9,10 @@ import { getTimeFormatOptions } from './utils/chartTimeFormat';
  */
 export function useTimeFormatUpdate(
   chartRef: React.RefObject<IChartApi | null>,
-  interval: KlineInterval
+  interval: KlineInterval,
 ) {
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current) {return;}
 
     const timeFormatOptions = getTimeFormatOptions(interval);
 
@@ -21,7 +21,7 @@ export function useTimeFormatUpdate(
         timeScale: timeFormatOptions,
       });
 
-      console.log('[useTimeFormatUpdate] Updated for interval:', interval);
+      console.info('[useTimeFormatUpdate] Updated for interval:', interval);
     } catch (error) {
       console.error('[useTimeFormatUpdate] Failed:', error);
     }

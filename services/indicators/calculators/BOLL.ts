@@ -12,7 +12,7 @@ import { calculateMA } from './MA';
 export function calculateBOLL(
   bars: KlineBar[],
   period: number = 20,
-  stdDev: number = 2
+  stdDev: number = 2,
 ): MultiIndicatorValue[] {
   const result: MultiIndicatorValue[] = [];
 

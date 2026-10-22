@@ -127,6 +127,6 @@ export const useIndicatorStore = create<IndicatorState>()(
     {
       name: 'indicator-settings',
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+    },
+  ),
 );

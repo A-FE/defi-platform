@@ -62,12 +62,12 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
                 key={type}
                 onClick={() => {
                   const t0 = performance.now();
-                  console.log(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
+                  console.info(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
 
                   toggleIndicator(type);
 
                   const t1 = performance.now();
-                  console.log(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
+                  console.info(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
                 }}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                   config.enabled
@@ -97,12 +97,12 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
                 key={type}
                 onClick={() => {
                   const t0 = performance.now();
-                  console.log(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
+                  console.info(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
 
                   toggleIndicator(type);
 
                   const t1 = performance.now();
-                  console.log(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
+                  console.info(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
                 }}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                   config.enabled

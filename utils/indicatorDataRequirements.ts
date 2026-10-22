@@ -30,7 +30,6 @@ export function getIndicatorMinDataSize(config: IndicatorConfig): number {
     case 'MACD':
       // MACD(fast, slow, signal) 需要 slow + signal 根数据
       // 例如 MACD(12, 26, 9) 需要 26 + 9 = 35 根
-      const fast = params.fast || 12;
       const slow = params.slow || 26;
       const signal = params.signal || 9;
       return slow + signal;
@@ -64,7 +63,7 @@ export function calculateMaxRedundantDataSize(enabledIndicators: IndicatorConfig
 
   // 找出所有指标中需求最大的
   const maxMinSize = Math.max(
-    ...enabledIndicators.map((config) => getIndicatorMinDataSize(config))
+    ...enabledIndicators.map((config) => getIndicatorMinDataSize(config)),
   );
 
   // 返回 2 倍冗余
@@ -78,14 +77,14 @@ export function calculateMaxRedundantDataSize(enabledIndicators: IndicatorConfig
  * @returns 最大数据需求量（例如：MACD 返回 35）
  */
 export function getMaxIndicatorDataRequirement(
-  enabledIndicators: IndicatorConfig[]
+  enabledIndicators: IndicatorConfig[],
 ): number {
   if (enabledIndicators.length === 0) {
     return 0;
   }
 
   return Math.max(
-    ...enabledIndicators.map((config) => getIndicatorMinDataSize(config))
+    ...enabledIndicators.map((config) => getIndicatorMinDataSize(config)),
   );
 }
 
@@ -97,7 +96,7 @@ export function getMaxIndicatorDataRequirement(
  */
 export function calculateTotalDataSize(
   displaySize: number,
-  enabledIndicators: IndicatorConfig[]
+  enabledIndicators: IndicatorConfig[],
 ): number {
   const redundantSize = calculateMaxRedundantDataSize(enabledIndicators);
   return displaySize + redundantSize;

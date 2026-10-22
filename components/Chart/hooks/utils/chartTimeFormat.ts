@@ -33,8 +33,8 @@ export function getTimeFormatOptions(interval: KlineInterval) {
             const minutes = String(date.getMinutes()).padStart(2, '0');
             const seconds = String(date.getSeconds()).padStart(2, '0');
             return `${hours}:${minutes}:${seconds}`;
-          }
-        }
+          },
+        },
       };
 
     case '5m':
@@ -49,8 +49,8 @@ export function getTimeFormatOptions(interval: KlineInterval) {
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
             return `${hours}:${minutes}`;
-          }
-        }
+          },
+        },
       };
 
     case '1h':
@@ -67,8 +67,8 @@ export function getTimeFormatOptions(interval: KlineInterval) {
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
             return `${month}-${day} ${hours}:${minutes}`;
-          }
-        }
+          },
+        },
       };
 
     case '1d':
@@ -84,8 +84,8 @@ export function getTimeFormatOptions(interval: KlineInterval) {
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
-          }
-        }
+          },
+        },
       };
 
     default:
