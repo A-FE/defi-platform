@@ -56,9 +56,16 @@ export const useKlineStore = create<KlineState>()(
               to: new Date(to * 1000).toISOString(),
             });
 
-            // 生成基础 K 线数据
+            // 获取或创建 Session
             const session = klineSessionManager.getOrCreateSession(symbol, interval);
             const limit = Math.ceil((to - from) / getIntervalSeconds(interval));
+
+            // ⚠️ 关键修复：如果 Session 已有 lastBar，使用它的价格作为基准
+            // 这样切换周期时价格能保持连续性
+            const existingLastBar = session.getLastBar();
+            if (existingLastBar) {
+              console.log('[fetchKlines] 复用现有 Session 价格:', existingLastBar.close);
+            }
 
             // 使用 before 参数生成指定时间范围之前的历史数据
             const bars = session.generateHistory(limit, to);
@@ -99,6 +106,16 @@ export const useKlineStore = create<KlineState>()(
       subscribeBars: (symbol, interval, lastBar, callback) => {
         // 获取该 symbol+interval 的会话
         const session = klineSessionManager.getOrCreateSession(symbol, interval);
+
+        // ⚠️ 关键修复：初始化 Session 的 lastBar，确保 WebSocket 基于正确的价格继续生成
+        // 这样第一次推送就能从历史数据的最后价格平滑过渡
+        session.setLastBar(lastBar);
+
+        console.log('[subscribeBars] 初始化 Session lastBar:', {
+          symbol,
+          interval,
+          lastBarClose: lastBar.close,
+        });
 
         // 根据K线周期动态调整更新频率
         const updateIntervalMap: Record<KlineInterval, number> = {

@@ -35,11 +35,19 @@ export class KlineSession {
     // 使用统一的时间对齐逻辑
     const endTime = TimeAlignmentUtil.getHistoryEndTime(this.interval, before);
 
-    // 重置会话状态
-    this.lastBar = null;
-    const trendParams = PriceGenerator.generateTrendParams();
-    this.trend = trendParams.trend;
-    this.trendStrength = trendParams.trendStrength;
+    // ⚠️ 关键修复：如果 Session 已有 lastBar，保持价格连续性
+    // 不重置状态，让新生成的数据基于现有价格
+    const shouldPreservePrice = this.lastBar !== null;
+
+    if (!shouldPreservePrice) {
+      // 只在首次生成时重置状态
+      this.lastBar = null;
+      const trendParams = PriceGenerator.generateTrendParams();
+      this.trend = trendParams.trend;
+      this.trendStrength = trendParams.trendStrength;
+    } else {
+      console.log('[KlineSession] 保持价格连续性，基于现有 lastBar:', this.lastBar?.close);
+    }
 
     // 生成历史数据
     for (let i = limit - 1; i >= 0; i--) {
@@ -128,6 +136,17 @@ export class KlineSession {
    */
   getLastBar(): KlineBar | null {
     return this.lastBar;
+  }
+
+  /**
+   * 设置最后一根 K线（用于 WebSocket 订阅初始化）
+   * 确保 Session 基于正确的历史价格继续生成
+   */
+  setLastBar(bar: KlineBar): void {
+    this.lastBar = bar;
+    // 同时更新 basePrice，确保后续生成基于正确的价格
+    this.basePrice = bar.close;
+    console.log(`[KlineSession] setLastBar: close=${bar.close}, time=${bar.time}`);
   }
 
   /**

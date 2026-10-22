@@ -82,9 +82,16 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
 
   // ========== 6. 周期变化监听 ==========
   useEffect(() => {
-    if (!seriesRef.current) return;
+    if (!seriesRef.current) {
+      console.log('[useKlineChart] ⚠️ seriesRef.current 为 null，跳过加载');
+      return;
+    }
 
-    console.log('[useKlineChart] Interval changed to:', interval);
+    console.log('[useKlineChart] 🔄 周期变化触发:', {
+      interval,
+      symbol,
+      timestamp: Date.now(),
+    });
 
     // 取消 WebSocket 订阅
     unsubscribe();
@@ -99,6 +106,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     // 重新加载数据
     loadKlineData(interval).finally(() => {
       setIsLoading(false);
+      console.log('[useKlineChart] ✅ 加载完成');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interval, symbol]);

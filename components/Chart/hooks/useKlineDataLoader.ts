@@ -28,12 +28,26 @@ export function useKlineDataLoader({
 }: UseKlineDataLoaderProps) {
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
   const isReloadingRef = useRef<boolean>(false);
+  const lastLoadedIntervalRef = useRef<KlineInterval | null>(null);
 
   const loadKlineData = useCallback(
     async (interval: KlineInterval) => {
       if (!seriesRef.current) return;
 
+      // ⚠️ 防止重复加载同一周期的数据
+      if (isReloadingRef.current && lastLoadedIntervalRef.current === interval) {
+        console.log('[loadKlineData] ⚠️ 已在加载中，跳过重复请求:', interval);
+        return;
+      }
+
       isReloadingRef.current = true;
+      lastLoadedIntervalRef.current = interval;
+
+      console.log('[loadKlineData] 🔄 开始加载:', {
+        interval,
+        symbol,
+        timestamp: Date.now(),
+      });
 
       try {
         const now = Math.floor(Date.now() / 1000);
