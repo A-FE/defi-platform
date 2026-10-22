@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useKlineStore } from '@/stores';
 import { KlineInterval, KlineBar } from '@/types/market';
+import { CHART_DATA_CONFIG } from '@/constants/chart';
 
 // 拆分后的子 Hooks
 import { useChartInit } from './useChartInit';
@@ -22,12 +23,19 @@ interface UseKlineChartProps {
  * - 协调各个子 Hook 的交互
  * - 管理周期状态
  * - 暴露统一的 API 接口
+ *
+ * 数据分离策略：
+ * - fullKlineData: 完整数据（100 根），用于指标计算
+ * - displayKlineData: 显示数据（50 根），用于图表渲染
  */
 export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartProps) {
   // ========== 状态管理 ==========
   const [interval, setInterval] = useState<KlineInterval>(initialInterval);
   const [isLoading, setIsLoading] = useState(false);
-  const [klineData, setKlineData] = useState<KlineBar[]>([]);
+
+  // ✅ 数据分离：完整数据（用于指标计算）和显示数据（用于图表渲染）
+  const [fullKlineData, setFullKlineData] = useState<KlineBar[]>([]); // 100 根
+  const [displayKlineData, setDisplayKlineData] = useState<KlineBar[]>([]); // 50 根
 
   // ========== Store ==========
   const { fetchKlines, subscribeBars } = useKlineStore();
@@ -52,9 +60,11 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     chartRef,
     seriesRef,
     fetchKlines,
-    currentKlineData: klineData, // ✅ 传入完整的 K 线数据（包含 volume）
+    currentKlineData: fullKlineData, // ✅ 传入完整数据
     onDataLoaded: (bars) => {
-      setKlineData(bars);
+      setFullKlineData(bars);
+      // ✅ 更新显示数据（最新 50 根）
+      setDisplayKlineData(bars.slice(-CHART_DATA_CONFIG.DISPLAY_DATA_SIZE));
     },
   });
 
@@ -66,10 +76,19 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     fetchKlines,
     subscribeBars,
     onDataLoaded: (barsOrUpdater) => {
+      // ✅ 更新完整数据
       if (typeof barsOrUpdater === 'function') {
-        setKlineData(barsOrUpdater);
+        setFullKlineData(barsOrUpdater);
       } else {
-        setKlineData(barsOrUpdater);
+        setFullKlineData(barsOrUpdater);
+      }
+    },
+    onDisplayDataLoaded: (barsOrUpdater) => {
+      // ✅ 更新显示数据
+      if (typeof barsOrUpdater === 'function') {
+        setDisplayKlineData(barsOrUpdater);
+      } else {
+        setDisplayKlineData(barsOrUpdater);
       }
     },
     onOldestTimeUpdate: (time) => {
@@ -78,7 +97,8 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   });
 
   // ========== 5. 指标渲染 ==========
-  useIndicatorRenderer(chartRef, managerRef, klineData, enabledIndicators);
+  // ✅ 传入完整数据用于计算，显示数据用于过滤
+  useIndicatorRenderer(chartRef, managerRef, fullKlineData, displayKlineData, enabledIndicators);
 
   // ========== 6. 周期变化监听 ==========
   useEffect(() => {
@@ -100,7 +120,8 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     resetHistory();
 
     // 清空数据
-    setKlineData([]);
+    setFullKlineData([]);
+    setDisplayKlineData([]);
     setIsLoading(true);
 
     // 重新加载数据

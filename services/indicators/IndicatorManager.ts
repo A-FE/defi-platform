@@ -49,11 +49,21 @@ export class IndicatorManager {
   }
 
   /**
-   * ✅ 统一入口：计算 + 渲染指标（优化版：增量更新）
-   * @param bars 原始K线数据
+   * ✅ 统一入口：计算 + 渲染指标（优化版：增量更新 + 数据分离）
+   *
+   * 数据分离策略：
+   * - fullBars: 完整数据（100 根），用于指标计算，确保 MACD 等指标有足够数据
+   * - displayBars: 显示数据（50 根），用于过滤指标结果，只渲染可见范围
+   *
+   * @param fullBars 完整K线数据（用于计算）
+   * @param displayBars 显示K线数据（用于过滤）
    * @param configs 指标配置列表
    */
-  public updateIndicators(bars: KlineBar[], configs: IndicatorConfig[]): void {
+  public updateIndicators(
+    fullBars: KlineBar[],
+    displayBars: KlineBar[],
+    configs: IndicatorConfig[]
+  ): void {
     const enabledConfigs = configs.filter(c => c.enabled);
 
     if (enabledConfigs.length === 0) {
@@ -62,26 +72,37 @@ export class IndicatorManager {
       return;
     }
 
-    // Step 1: 检查 K 线数据是否变化
-    const barsChanged = this.hasBarsChanged(bars);
+    // Step 1: 检查 K 线数据是否变化（使用完整数据检查）
+    const barsChanged = this.hasBarsChanged(fullBars);
 
-    // Step 2: 计算指标（前端计算）
-    const barsWithIndicators = this.calculateIndicators(bars, enabledConfigs);
+    // Step 2: 用完整数据计算指标
+    const fullBarsWithIndicators = this.calculateIndicators(fullBars, enabledConfigs);
 
-    // Step 3: 检查参数是否变化
+    // Step 3: 过滤出显示范围的指标数据
+    const displayTimeSet = new Set(displayBars.map(b => b.time));
+    const displayBarsWithIndicators = fullBarsWithIndicators.filter(b =>
+      displayTimeSet.has(b.time)
+    );
+
+    console.log('[IndicatorManager] 数据过滤:', {
+      fullData: fullBarsWithIndicators.length,
+      displayData: displayBarsWithIndicators.length,
+    });
+
+    // Step 4: 检查参数是否变化
     const paramsChanged = this.hasConfigChanged(enabledConfigs);
 
     if (paramsChanged) {
       // 参数变化：完全重建
       console.log('[IndicatorManager] 🔧 参数变化，完全重建');
-      this.renderIndicators(barsWithIndicators, enabledConfigs);
+      this.renderIndicators(displayBarsWithIndicators, enabledConfigs);
       this.lastConfigs = enabledConfigs;
     } else {
       // 参数未变：增量更新（添加新的、删除旧的、更新现有的）
-      this.incrementalUpdate(barsWithIndicators, enabledConfigs, barsChanged);
+      this.incrementalUpdate(displayBarsWithIndicators, enabledConfigs, barsChanged);
     }
 
-    this.lastBars = bars;
+    this.lastBars = fullBars; // ✅ 使用完整数据作为缓存
   }
 
   /**
@@ -638,13 +659,21 @@ export class IndicatorManager {
   private updateVOLData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
     const [volSeries] = series;
 
+    // ✅ 成交量颜色跟随 K 线涨跌
     const volData: HistogramData[] = bars
       .filter((bar) => bar.volume !== undefined)
-      .map((bar) => ({
-        time: bar.time as any,
-        value: bar.volume,
-        color: '#4fc3f7',
-      }));
+      .map((bar) => {
+        // 涨：收盘价 >= 开盘价，绿色
+        // 跌：收盘价 < 开盘价，红色
+        const isUp = bar.close >= bar.open;
+        const color = isUp ? '#10b981' : '#ef4444';
+
+        return {
+          time: bar.time as any,
+          value: bar.volume,
+          color,
+        };
+      });
 
     if (volData.length > 0) {
       volSeries.setData(volData);
@@ -1028,13 +1057,21 @@ export class IndicatorManager {
   private renderVOL(bars: IndicatorKlineItem[], config: IndicatorConfig): void {
     const paneIndex = this.getOrCreatePane(config);
 
+    // ✅ 成交量颜色跟随 K 线涨跌
     const volData: HistogramData[] = bars
       .filter((bar) => bar.volume !== undefined)
-      .map((bar) => ({
-        time: bar.time as any,
-        value: bar.volume,
-        color: config.colors[0] || '#4fc3f7',
-      }));
+      .map((bar) => {
+        // 涨：收盘价 >= 开盘价，绿色
+        // 跌：收盘价 < 开盘价，红色
+        const isUp = bar.close >= bar.open;
+        const color = isUp ? '#10b981' : '#ef4444';
+
+        return {
+          time: bar.time as any,
+          value: bar.volume,
+          color,
+        };
+      });
 
     if (volData.length === 0) {
       console.warn('[IndicatorManager] No VOL data to render');
