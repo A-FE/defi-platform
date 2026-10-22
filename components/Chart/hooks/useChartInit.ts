@@ -23,6 +23,7 @@ export function useChartInit() {
         layout: {
           background: { color: '#111827' },
           textColor: '#d1d5db',
+          attributionLogo: false,
         },
         grid: {
           vertLines: { color: '#1f2937' },
@@ -33,6 +34,7 @@ export function useChartInit() {
           timeVisible: true,
           secondsVisible: false,
         },
+        
       });
 
       chartRef.current = chart;

@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable max-lines */
 import { IChartApi, ISeriesApi, LineData, Time, HistogramData, LineSeries, HistogramSeries } from 'lightweight-charts';
 import { KlineBar } from '@/types/market';
-import { IndicatorConfig } from '@/types/indicator';
+import { IndicatorConfig, IndicatorType } from '@/types/indicator';
 import * as calculators from './calculators';
 
 /**
@@ -44,6 +45,9 @@ export class IndicatorManager {
 
   // 主 pane 固定为 0
   private readonly MAIN_PANE_INDEX = 0;
+
+  // ✅ 数据缓存：时间 -> 指标数据
+  private dataCache: Map<number, IndicatorKlineItem> = new Map();
 
   constructor(chart: IChartApi) {
     this.chart = chart;
@@ -89,6 +93,9 @@ export class IndicatorManager {
       fullData: fullBarsWithIndicators.length,
       displayData: displayBarsWithIndicators.length,
     });
+
+    // ✅ 更新数据缓存（用于图例显示）
+    this.updateDataCache(fullBarsWithIndicators);
 
     // Step 4: 检查参数是否变化
     const paramsChanged = this.hasConfigChanged(enabledConfigs);
@@ -1168,6 +1175,30 @@ export class IndicatorManager {
         console.warn(`Failed to remove pane for ${type}:`, error);
       }
     }
+  }
+
+  /**
+   * ✅ 更新数据缓存
+   */
+  private updateDataCache(bars: IndicatorKlineItem[]): void {
+    this.dataCache.clear();
+    bars.forEach(bar => {
+      this.dataCache.set(bar.time, bar);
+    });
+  }
+
+  /**
+   * ✅ 获取指定时间点的指标值
+   */
+  public getIndicatorData(time: number): IndicatorKlineItem | undefined {
+    return this.dataCache.get(time);
+  }
+
+  /**
+   * ✅ 获取指标所在的 pane 索引
+   */
+  public getPaneIndex(type: IndicatorType): number {
+    return this.indicatorPanes.get(type) || 0;
   }
 
   /**

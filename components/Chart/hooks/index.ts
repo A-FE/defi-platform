@@ -1,5 +1,7 @@
 // 主 Hook（编排层）
 export { useKlineChart } from './useKlineChart';
+export { useIndicatorLegend } from './useIndicatorLegend';
+export type { LegendItem } from './useIndicatorLegend';
 
 // 子 Hooks（可选导出，用于高级定制）
 export { useChartInit } from './useChartInit';

@@ -2,6 +2,7 @@
 
 import { useKlineChart } from './hooks/useKlineChart';
 import ChartControls from './ChartControls';
+import { IndicatorLegend } from './IndicatorLegend';
 import { KlineInterval } from '@/types/market';
 
 interface KlineChartProps {
@@ -26,10 +27,12 @@ export function KlineChart({ symbol, defaultInterval = '1d' }: KlineChartProps) 
   // ✅ 统一的图表 hook（合并了原来的 3 个 hooks）
   const {
     containerRef,
+    chartRef,
     isLoading,
     isLoadingMore,
     interval,
     setInterval,
+    legends,
   } = useKlineChart({ symbol, initialInterval: defaultInterval });
 
   return (
@@ -40,6 +43,9 @@ export function KlineChart({ symbol, defaultInterval = '1d' }: KlineChartProps) 
       {/* 图表容器：单个 chart，包含主副 pane */}
       <div className="flex-1 relative">
         <div ref={containerRef} className="absolute inset-0" />
+
+        {/* 指标图例 */}
+        <IndicatorLegend legends={legends} chartRef={chartRef} />
 
         {/* 初始加载状态 */}
         {isLoading && (

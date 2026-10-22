@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function */
 import { useState, useEffect } from 'react';
 import { useKlineStore } from '@/stores';
 import { KlineInterval, KlineBar } from '@/types/market';
@@ -9,6 +10,7 @@ import { useKlineDataLoader } from './useKlineDataLoader';
 import { useInfiniteLoadHistory } from './useInfiniteLoadHistory';
 import { useIndicatorRenderer } from './useIndicatorRenderer';
 import { useEnabledIndicators } from './useEnabledIndicators';
+import { useIndicatorLegend } from './useIndicatorLegend';
 
 interface UseKlineChartProps {
   symbol: string;
@@ -102,7 +104,14 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   // ✅ 传入完整数据用于计算，显示数据用于过滤
   useIndicatorRenderer(chartRef, managerRef, fullKlineData, displayKlineData, enabledIndicators);
 
-  // ========== 6. 周期变化监听 ==========
+  // ========== 6. 指标图例 ==========
+  const { legends } = useIndicatorLegend({
+    chartRef,
+    managerRef,
+    enabledIndicators,
+  });
+
+  // ========== 7. 周期变化监听 ==========
   useEffect(() => {
     if (!seriesRef.current) {
       console.info('[useKlineChart] ⚠️ seriesRef.current 为 null，跳过加载');
@@ -143,5 +152,6 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     setInterval,
     isLoading,
     isLoadingMore,
+    legends,
   };
 }
