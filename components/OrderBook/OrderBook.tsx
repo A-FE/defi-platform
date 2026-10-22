@@ -17,9 +17,8 @@ export function OrderBook({ symbol, maxLevels = 15 }: OrderBookProps) {
 
   // 订阅深度数据
   useEffect(() => {
-    const unsubscribeFn = subscribe(symbol);
+    subscribe(symbol);
     return () => {
-      unsubscribeFn();
       unsubscribe(symbol);
     };
   }, [symbol, subscribe, unsubscribe]);

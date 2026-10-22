@@ -2,24 +2,24 @@ import { useEffect, useRef, useMemo } from 'react';
 import { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useIndicatorStore } from '@/stores';
 import { IndicatorManager } from '@/services/indicators/IndicatorManager';
-import { IndicatorKlineItem } from '@/types/api';
+import { KlineBar } from '@/types/market';
 
 /**
- * 指标管理 Hook V3 - 纯渲染版本
+ * 指标管理 Hook V4 - 前端计算版本
  * 职责：
  *  - 监听指标配置变化和数据变化
- *  - 使用 IndicatorManager 渲染指标（纯渲染，无计算）
+ *  - 使用 IndicatorManager 计算+渲染指标（前端计算）
  *  - 动态管理 pane：启用时创建，禁用时移除
  *
- * V3 改变（统一接口重构）：
- *  - 不再负责数据获取（数据由 useKlineData 管理）
- *  - 只接收 klineData 参数，监听变化自动渲染
- *  - 大幅简化逻辑，从 ~180 行 → ~80 行
+ * V4 改变（前端计算重构）：
+ *  - 接收原始 KlineBar[]，不再是 IndicatorKlineItem[]
+ *  - IndicatorManager 内部负责计算指标
+ *  - 参数变化时立即重新计算，无网络延迟
  */
 export function useIndicators(
   chartRef: React.RefObject<IChartApi | null>,
   seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>,
-  klineData: IndicatorKlineItem[]  // ✅ 从外部接收完整数据
+  klineData: KlineBar[]  // ✅ 改为原始 KlineBar[]
 ) {
   const managerRef = useRef<IndicatorManager | null>(null);
   const { configs, getEnabledIndicators } = useIndicatorStore();
@@ -47,7 +47,7 @@ export function useIndicators(
     };
   }, [chartRef, seriesRef]);
 
-  // ✅ 监听数据变化，自动渲染指标
+  // ✅ 监听数据变化，自动计算+渲染指标
   useEffect(() => {
     if (!managerRef.current || klineData.length === 0) {
       return;
@@ -61,12 +61,13 @@ export function useIndicators(
       return;
     }
 
-    console.log('[useIndicators] Rendering indicators:', {
+    console.log('[useIndicators] Updating indicators:', {
       barsCount: klineData.length,
       indicators: enabledConfigs.map(c => c.type),
     });
 
-    managerRef.current.renderIndicators(klineData, enabledConfigs);
+    // ✅ 前端计算+渲染（一次调用完成）
+    managerRef.current.updateIndicators(klineData, enabledConfigs);
   }, [klineData, enabledIndicators, getEnabledIndicators]);
 
   // ✅ 不再返回任何方法（纯被动渲染）

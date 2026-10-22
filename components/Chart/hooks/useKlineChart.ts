@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createChart, CandlestickSeries, Time } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useKlineStore, useIndicatorStore } from '@/stores';
-import { KlineInterval } from '@/types/market';
-import { IndicatorKlineItem } from '@/types/api';
+import { KlineInterval, KlineBar } from '@/types/market';
 import { IndicatorManager } from '@/services/indicators/IndicatorManager';
-import { mockCalculateIndicators } from '@/services/mock/indicatorMock';
 
 /**
  * 辅助函数：获取 K 线周期对应的秒数
@@ -139,11 +137,16 @@ export function useKlineChart(
   const [interval, setIntervalState] = useState<KlineInterval>(defaultInterval);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [klineData, setKlineData] = useState<IndicatorKlineItem[]>([]);
+  const [klineData, setKlineData] = useState<KlineBar[]>([]);
 
   // ========== Store ==========
   const { fetchKlines, subscribeBars, unsubscribeBars } = useKlineStore();
-  const { getEnabledIndicators } = useIndicatorStore();
+  const { configs: indicatorConfigs, getEnabledIndicators } = useIndicatorStore();
+
+  // ✅ 优化：使用 useMemo 缓存启用的指标配置，避免每次都重新计算
+  const enabledIndicators = useMemo(() => {
+    return Object.values(indicatorConfigs).filter(c => c.enabled);
+  }, [indicatorConfigs]);
 
   // ========== 图表初始化 ==========
   useEffect(() => {
@@ -229,75 +232,6 @@ export function useKlineChart(
     }
   }, [interval]);
 
-  // ========== 获取当前启用的指标 ==========
-  const enabledIndicators = useCallback(() => {
-    const configs = getEnabledIndicators();
-
-    const result = configs.map(c => {
-      // ✅ 根据指标类型正确转换参数
-      let params: number[];
-
-      switch (c.type) {
-        case 'MA':
-        case 'EMA':
-          // MA/EMA: params 是对象 {period1: 5, period2: 10, ...}
-          // 需要转换为数组 [5, 10, ...]
-          params = Object.values(c.params);
-          break;
-
-        case 'MACD':
-          // MACD: params 是 {fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
-          // 需要按顺序转换为 [12, 26, 9]
-          params = [
-            c.params.fastPeriod,
-            c.params.slowPeriod,
-            c.params.signalPeriod,
-          ];
-          break;
-
-        case 'KDJ':
-          // KDJ: params 是 {period: 9, kPeriod: 3, dPeriod: 3}
-          // 需要按顺序转换为 [9, 3, 3]
-          params = [
-            c.params.period,
-            c.params.kPeriod,
-            c.params.dPeriod,
-          ];
-          break;
-
-        case 'RSI':
-          // RSI: params 是 {period: 14}
-          // 需要转换为 [14]
-          params = [c.params.period];
-          break;
-
-        case 'BOLL':
-          // BOLL: params 是 {period: 20, stdDev: 2}
-          // 需要按顺序转换为 [20, 2]
-          params = [c.params.period, c.params.stdDev];
-          break;
-
-        case 'VOL':
-          // VOL: 无参数
-          params = [];
-          break;
-
-        default:
-          params = Object.values(c.params);
-      }
-
-      return {
-        name: c.type.toLowerCase(),
-        params,
-      };
-    });
-
-    // ✅ 添加调试日志
-    console.log('[enabledIndicators] 转换后的指标配置:', result);
-
-    return result;
-  }, [getEnabledIndicators]);
-
   // ========== 加载更多历史数据（无限左滑）==========
   const loadMoreHistory = useCallback(
     async (currentInterval: KlineInterval) => {
@@ -342,8 +276,7 @@ export function useKlineChart(
           symbol,
           currentInterval,
           from,
-          to,
-          []  // 只获取 K 线
+          to
         );
 
         if (olderBars && olderBars.length > 0) {
@@ -362,53 +295,13 @@ export function useKlineChart(
             low: bar.low * priceAdjustment,
             close: bar.close * priceAdjustment,
             volume: bar.volume,
-            indicators: {},
           }));
 
-          // ✅ 滑动窗口计算指标（关键修复）
-          let finalAdjustedBars = adjustedOlderBars;
-          let updatedCurrentData = klineData;  // ✅ 保存更新后的当前数据
-          const indicators = enabledIndicators();
-
-          if (indicators.length > 0) {
-            try {
-              const currentCompleteData = klineData;
-              const allBarsForCalculation = [...adjustedOlderBars, ...currentCompleteData];
-
-              console.log('[loadMoreHistory] 使用滑动窗口计算指标:', {
-                历史数据: adjustedOlderBars.length,
-                当前数据: currentCompleteData.length,
-                完整数据集: allBarsForCalculation.length,
-              });
-
-              // ✅ 用完整数据集计算指标
-              const allBarsWithIndicators = mockCalculateIndicators(allBarsForCalculation, {
-                symbol,
-                resolution: currentInterval,
-                from: allBarsForCalculation[0].time,
-                to: allBarsForCalculation[allBarsForCalculation.length - 1].time,
-                indicators,
-              });
-
-              // ✅ 分割：前 N 根是新历史数据，后面是更新后的当前数据
-              finalAdjustedBars = allBarsWithIndicators.slice(0, adjustedOlderBars.length);
-              updatedCurrentData = allBarsWithIndicators.slice(adjustedOlderBars.length);
-
-              console.log('[loadMoreHistory] 滑动窗口指标计算完成:', {
-                新历史数据: finalAdjustedBars.length,
-                更新后当前数据: updatedCurrentData.length,
-                总计: allBarsWithIndicators.length,
-              });
-            } catch (error) {
-              console.error('[loadMoreHistory] 指标计算失败:', error);
-            }
-          }
-
-          // ✅ 合并完整数据（带指标）
-          const allBarsWithIndicators = [...finalAdjustedBars, ...updatedCurrentData];
+          // ✅ 简化：指标由 IndicatorManager 自动计算，这里只处理K线数据
+          const allBars = [...adjustedOlderBars, ...currentData];
 
           // 更新图表（只渲染 K 线）
-          const formattedData = allBarsWithIndicators.map((bar: any) => {
+          const formattedData = allBars.map((bar: any) => {
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
             if (isNaN(time)) return null;
 
@@ -423,8 +316,8 @@ export function useKlineChart(
 
           seriesRef.current.setData(formattedData as any);
 
-          // ✅ 更新状态（完整数据，包含指标）
-          setKlineData(allBarsWithIndicators);
+          // ✅ 更新状态（原始K线数据）
+          setKlineData(allBars as KlineBar[]);
 
           console.log(`[loadMoreHistory] 加载了 ${olderBars.length} 根历史K线`);
         } else {
@@ -456,14 +349,12 @@ export function useKlineChart(
       try {
         const now = Math.floor(Date.now() / 1000);
         const from = now - (100 * getIntervalSeconds(newInterval));
-        const indicators = enabledIndicators();
 
         const bars = await fetchKlines(
           symbol,
           newInterval,
           from,
-          now,
-          indicators
+          now
         );
 
         if (bars.length === 0) {
@@ -557,7 +448,7 @@ export function useKlineChart(
           } catch (error) {
             console.error('[useKlineChart] Update failed:', error);
           }
-        }, indicators);
+        });
 
         unsubscribeRef.current = unsubscribe;
 
@@ -582,7 +473,7 @@ export function useKlineChart(
       hasManager: !!managerRef.current,
       hasChart: !!chartRef.current,
       dataLength: klineData.length,
-      enabledCount: getEnabledIndicators().length,
+      enabledCount: enabledIndicators.length,
       timestamp: Date.now(),
     });
 
@@ -591,96 +482,20 @@ export function useKlineChart(
       return;
     }
 
-    const enabledConfigs = getEnabledIndicators();
-
-    if (enabledConfigs.length === 0) {
+    if (enabledIndicators.length === 0) {
       console.log('[useKlineChart] 📭 无启用指标，清空');
       managerRef.current.clear();
       return;
     }
 
-    // ✅ 检查当前数据是否包含所需的指标数据
-    const needsRecalculation = enabledConfigs.some(config => {
-      // 检查数据中是否有该指标
-      const hasIndicatorData = klineData.some(bar => {
-        switch (config.type) {
-          case 'MACD':
-            return bar.indicators.macd !== undefined;
-          case 'RSI':
-            return bar.indicators.rsi !== undefined;
-          case 'KDJ':
-            return bar.indicators.kdj !== undefined;
-          case 'BOLL':
-            return bar.indicators.boll !== undefined;
-          case 'MA':
-            return bar.indicators.ma !== undefined;
-          case 'EMA':
-            return bar.indicators.ema !== undefined;
-          case 'VOL':
-            return bar.indicators.vol !== undefined;
-          default:
-            return false;
-        }
-      });
-      return !hasIndicatorData;
-    });
-
-    // ✅ 如果需要重新计算指标
-    if (needsRecalculation) {
-      const t0 = performance.now();
-      console.log('[useKlineChart] 🔍 指标数据缺失，开始重新计算:', {
-        enabledIndicators: enabledConfigs.map(c => c.type),
-        dataLength: klineData.length,
-      });
-
-      try {
-        const t1 = performance.now();
-        const indicators = enabledIndicators();
-
-        if (indicators.length === 0) return;
-
-        const t2 = performance.now();
-        console.log(`[useKlineChart] ⏱️ 准备指标配置: ${(t2 - t1).toFixed(2)}ms`);
-
-        // 重新计算所有指标
-        const barsWithIndicators = mockCalculateIndicators(klineData, {
-          symbol,
-          resolution: interval,
-          from: klineData[0]?.time || 0,
-          to: klineData[klineData.length - 1]?.time || 0,
-          indicators,
-        });
-
-        const t3 = performance.now();
-        console.log(`[useKlineChart] ⏱️ 指标计算: ${(t3 - t2).toFixed(2)}ms`);
-
-        // ✅ 关键优化：直接渲染，不触发第二次 useEffect
-        managerRef.current.updateIndicators(barsWithIndicators, enabledConfigs);
-
-        const t4 = performance.now();
-        console.log(`[useKlineChart] ⏱️ 渲染: ${(t4 - t3).toFixed(2)}ms`);
-        console.log(`[useKlineChart] ✅ 总耗时: ${(t4 - t0).toFixed(2)}ms`);
-
-        // ✅ 异步更新状态（不阻塞渲染）
-        requestAnimationFrame(() => {
-          setKlineData(barsWithIndicators);
-        });
-
-        return; // 已完成渲染，跳过后面的逻辑
-      } catch (error) {
-        console.error('[useKlineChart] 指标重新计算失败:', error);
-      }
-    }
-
+    // ✅ 简化：直接调用 IndicatorManager 更新指标（前端自动计算）
     console.log('[useKlineChart] 更新指标:', {
       barsCount: klineData.length,
-      indicators: enabledConfigs.map(c => c.type),
-      hasMACDData: klineData.filter(b => b.indicators.macd).length,
+      indicators: enabledIndicators.map(c => c.type),
     });
 
-    // ✅ 使用增量更新（智能判断是否需要重建）
-    managerRef.current.updateIndicators(klineData, enabledConfigs);
-  }, [klineData, getEnabledIndicators, symbol, interval, enabledIndicators]);
+    managerRef.current.updateIndicators(klineData, enabledIndicators);
+  }, [klineData, enabledIndicators]); // ✅ 修复：直接依赖 enabledIndicators，不是函数
 
   // ========== 监听周期变化 ==========
   useEffect(() => {

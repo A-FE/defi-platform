@@ -41,6 +41,7 @@ export const useIndicatorStore = create<IndicatorState>()(
       configs: DEFAULT_INDICATOR_CONFIGS,
 
       toggleIndicator: (type) => {
+        // ✅ 立即更新，避免延迟
         set((state) => ({
           configs: {
             ...state.configs,

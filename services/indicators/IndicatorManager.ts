@@ -1,15 +1,30 @@
 import { IChartApi, ISeriesApi, LineData, HistogramData, LineSeries, HistogramSeries } from 'lightweight-charts';
-import { IndicatorKlineItem } from '@/types/api';
+import { KlineBar } from '@/types/market';
 import { IndicatorConfig } from '@/types/indicator';
+import * as calculators from './calculators';
 
 /**
- * 指标管理器 - 后端驱动版本
+ * 指标数据项（包含K线 + 指标）
+ */
+interface IndicatorKlineItem extends KlineBar {
+  indicators: {
+    ma?: Record<string, number>;
+    ema?: Record<string, number>;
+    boll?: { upper: number; middle: number; lower: number };
+    rsi?: { rsi: number };
+    macd?: { dif: number; dea: number; macd: number };
+    kdj?: { k: number; d: number; j: number };
+  };
+}
+
+/**
+ * 指标管理器 V2 - 前端计算版本
  *
- * 职责：只负责渲染后端返回的指标数据，不包含任何计算逻辑
  * 核心改变：
- * 1. 移除所有指标计算逻辑
- * 2. 直接使用后端返回的指标数据
- * 3. 专注于图表渲染和 pane 管理
+ * 1. 从"纯渲染器"变为"计算器+渲染器"
+ * 2. 接收原始 KlineBar[]，内部计算指标
+ * 3. 不再依赖后端API返回指标数据
+ * 4. 参数变化时立即重新计算，无网络延迟
  */
 export class IndicatorManager {
   private chart: IChartApi;
@@ -24,6 +39,9 @@ export class IndicatorManager {
   // ✅ 缓存当前的指标配置（用于检测变化）
   private lastConfigs: IndicatorConfig[] = [];
 
+  // ✅ 缓存最近的K线数据（用于增量更新检测）
+  private lastBars: KlineBar[] = [];
+
   // 主 pane 固定为 0
   private readonly MAIN_PANE_INDEX = 0;
 
@@ -33,36 +51,197 @@ export class IndicatorManager {
   }
 
   /**
-   * ✅ 智能更新指标（增量更新 + 按需重建）
-   * @param bars 带指标的 K 线数据
-   * @param configs 启用的指标配置
+   * ✅ 统一入口：计算 + 渲染指标
+   * @param bars 原始K线数据
+   * @param configs 指标配置列表
    */
-  updateIndicators(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
+  public updateIndicators(bars: KlineBar[], configs: IndicatorConfig[]): void {
     const t0 = performance.now();
     const enabledConfigs = configs.filter(c => c.enabled);
 
-    // ✅ 检查配置是否变化或系列是否缺失
+    if (enabledConfigs.length === 0) {
+      this.clear();
+      console.log('[IndicatorManager] No enabled indicators, cleared all');
+      return;
+    }
+
+    // Step 1: 计算指标（前端计算）
+    const barsWithIndicators = this.calculateIndicators(bars, enabledConfigs);
+
+    // Step 2: 检查配置是否变化或系列是否缺失
     const configChanged = this.hasConfigChanged(enabledConfigs);
     const seriesMissing = this.hasSeriesMissing(enabledConfigs);
 
     if (configChanged || seriesMissing) {
-      // 配置变化或系列缺失：完全重建
+      // 配置变化：完全重建
       console.log('[IndicatorManager] 🔄 Config changed or series missing, rebuilding all indicators', {
         configChanged,
         seriesMissing,
       });
-      this.renderIndicators(bars, configs);
+      this.renderIndicators(barsWithIndicators, enabledConfigs);
       this.lastConfigs = enabledConfigs;
-
-      const t1 = performance.now();
-      console.log(`[IndicatorManager] ⏱️ 渲染耗时: ${(t1 - t0).toFixed(2)}ms`);
     } else {
       // 配置未变且系列存在：只更新数据
       console.log('[IndicatorManager] Config unchanged, updating data only');
-      this.updateSeriesData(bars, enabledConfigs);
+      this.updateSeriesData(barsWithIndicators, enabledConfigs);
+    }
 
-      const t1 = performance.now();
-      console.log(`[IndicatorManager] ⏱️ 更新耗时: ${(t1 - t0).toFixed(2)}ms`);
+    this.lastBars = bars;
+    const t1 = performance.now();
+    console.log(`[IndicatorManager] ⏱️ 总耗时: ${(t1 - t0).toFixed(2)}ms`);
+  }
+
+  /**
+   * ✅ 核心方法：从原始K线计算所有指标
+   */
+  private calculateIndicators(
+    bars: KlineBar[],
+    configs: IndicatorConfig[]
+  ): IndicatorKlineItem[] {
+    const t0 = performance.now();
+
+    // 初始化：所有bar都带空indicators对象
+    const result: IndicatorKlineItem[] = bars.map(bar => ({
+      ...bar,
+      indicators: {}
+    }));
+
+    // 遍历启用的指标，逐个计算并合并
+    configs.forEach(config => {
+      this.calculateSingleIndicator(bars, config, result);
+    });
+
+    const t1 = performance.now();
+    console.log(`[IndicatorManager] 计算指标耗时: ${(t1 - t0).toFixed(2)}ms`);
+
+    return result;
+  }
+
+  /**
+   * ✅ 计算单个指标并合并到结果数组
+   */
+  private calculateSingleIndicator(
+    bars: KlineBar[],
+    config: IndicatorConfig,
+    result: IndicatorKlineItem[]
+  ): void {
+    try {
+      switch (config.type) {
+        case 'MA': {
+          const periods = Object.values(config.params);
+          const maResult = calculators.calculateMultiMA(bars, periods);
+
+          // 合并到 result: result[i].indicators.ma = { ma5: xxx, ma10: xxx, ... }
+          Object.entries(maResult).forEach(([key, values]) => {
+            values.forEach(({ time, value }) => {
+              const index = result.findIndex(b => b.time === time);
+              if (index >= 0) {
+                if (!result[index].indicators.ma) {
+                  result[index].indicators.ma = {};
+                }
+                const maKey = key.toLowerCase(); // "MA5" -> "ma5"
+                result[index].indicators.ma[maKey] = value;
+              }
+            });
+          });
+          break;
+        }
+
+        case 'EMA': {
+          const periods = Object.values(config.params);
+          const emaResult = calculators.calculateMultiEMA(bars, periods);
+
+          // 合并到 result: result[i].indicators.ema = { ema7: xxx, ema25: xxx, ... }
+          Object.entries(emaResult).forEach(([key, values]) => {
+            values.forEach(({ time, value }) => {
+              const index = result.findIndex(b => b.time === time);
+              if (index >= 0) {
+                if (!result[index].indicators.ema) {
+                  result[index].indicators.ema = {};
+                }
+                const emaKey = key.toLowerCase(); // "EMA7" -> "ema7"
+                result[index].indicators.ema[emaKey] = value;
+              }
+            });
+          });
+          break;
+        }
+
+        case 'BOLL': {
+          const { period = 20, stdDev = 2 } = config.params;
+          const bollData = calculators.calculateBOLL(bars, period, stdDev);
+
+          bollData.forEach(({ time, values }) => {
+            const index = result.findIndex(b => b.time === time);
+            if (index >= 0) {
+              result[index].indicators.boll = {
+                upper: values.upper,
+                middle: values.middle,
+                lower: values.lower
+              };
+            }
+          });
+          break;
+        }
+
+        case 'RSI': {
+          const { period = 14 } = config.params;
+          const rsiData = calculators.calculateRSI(bars, period);
+
+          rsiData.forEach(({ time, value }) => {
+            const index = result.findIndex(b => b.time === time);
+            if (index >= 0) {
+              result[index].indicators.rsi = { rsi: value };
+            }
+          });
+          break;
+        }
+
+        case 'MACD': {
+          const { fast = 12, slow = 26, signal = 9 } = config.params;
+          const macdData = calculators.calculateMACD(bars, fast, slow, signal);
+
+          macdData.forEach(({ time, values }) => {
+            const index = result.findIndex(b => b.time === time);
+            if (index >= 0) {
+              result[index].indicators.macd = {
+                dif: values.dif,
+                dea: values.dea,
+                macd: values.macd
+              };
+            }
+          });
+          break;
+        }
+
+        case 'KDJ': {
+          const { period = 9, k = 3, d = 3 } = config.params;
+          const kdjData = calculators.calculateKDJ(bars, period, k, d);
+
+          kdjData.forEach(({ time, values }) => {
+            const index = result.findIndex(b => b.time === time);
+            if (index >= 0) {
+              result[index].indicators.kdj = {
+                k: values.k,
+                d: values.d,
+                j: values.j
+              };
+            }
+          });
+          break;
+        }
+
+        case 'VOL': {
+          // VOL 不需要计算，直接使用 K线的 volume 字段
+          // 渲染时直接读取 bar.volume
+          break;
+        }
+
+        default:
+          console.warn(`[IndicatorManager] Unknown indicator type: ${config.type}`);
+      }
+    } catch (error) {
+      console.error(`[IndicatorManager] Failed to calculate ${config.type}:`, error);
     }
   }
 
@@ -115,7 +294,6 @@ export class IndicatorManager {
     configs.forEach((config) => {
       const series = this.indicatorSeries.get(config.type);
       if (!series) {
-        // 如果系列不存在，说明需要重建
         console.warn(`[IndicatorManager] Series not found for ${config.type}, rebuilding`);
         this.renderIndicators(bars, configs);
         return;
@@ -330,11 +508,9 @@ export class IndicatorManager {
   }
 
   /**
-   * 渲染后端返回的指标数据（主入口）
-   * @param bars 带指标的 K 线数据（来自后端）
-   * @param configs 启用的指标配置
+   * 渲染指标到图表（完全重建）
    */
-  renderIndicators(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
+  private renderIndicators(bars: IndicatorKlineItem[], configs: IndicatorConfig[]): void {
     console.log('[IndicatorManager] renderIndicators:', {
       barsCount: bars.length,
       configsCount: configs.length,
@@ -428,8 +604,6 @@ export class IndicatorManager {
     const difSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[0] || '#2962FF',
       lineWidth: 1,
-      // title: 'DIF',
-      // priceLineVisible: false,
       lastValueVisible: false,
     }, paneIndex);
     difSeries.setData(difData);
@@ -438,8 +612,6 @@ export class IndicatorManager {
     const deaSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[1] || '#FF6D00',
       lineWidth: 1,
-      // title: 'DEA',
-      // priceLineVisible: false,
       lastValueVisible: false,
     }, paneIndex);
     deaSeries.setData(deaData);
@@ -538,7 +710,6 @@ export class IndicatorManager {
     const kSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[0] || '#2962FF',
       lineWidth: 1,
-      // title: 'K',
       priceLineVisible: false,
       lastValueVisible: false,
     }, paneIndex);
@@ -547,7 +718,6 @@ export class IndicatorManager {
     const dSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[1] || '#FF6D00',
       lineWidth: 1,
-      // title: 'D',
       priceLineVisible: false,
       lastValueVisible: false,
     }, paneIndex);
@@ -556,7 +726,6 @@ export class IndicatorManager {
     const jSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[2] || '#9C27B0',
       lineWidth: 1,
-      // title: 'J',
       priceLineVisible: false,
       lastValueVisible: false,
     }, paneIndex);
@@ -652,7 +821,6 @@ export class IndicatorManager {
         const maSeries = this.chart.addSeries(LineSeries, {
           color: config.colors[index] || '#2962FF',
           lineWidth: 2,
-          // title: maKey.toUpperCase(),
           priceLineVisible: false,
           lastValueVisible: false,
         }, paneIndex);
@@ -757,12 +925,10 @@ export class IndicatorManager {
     }
 
     // 创建新的 pane
-    // Lightweight Charts 5.x: addPane() 不再接受配置对象
     const paneApi = this.chart.addPane();
     const newPaneIndex = this.chart.panes().length - 1;
 
-    // 设置 pane 高度比例（防止布局偏移）
-    // 使用 stretch factor: 1.0 表示占合理的高度（自动平衡）
+    // 设置 pane 高度比例
     paneApi.setStretchFactor(1.0);
 
     this.indicatorPanes.set(config.type, newPaneIndex);
@@ -779,7 +945,6 @@ export class IndicatorManager {
 
     if (paneIndex !== undefined && paneIndex > 0) {
       try {
-        // 移除 pane
         this.chart.removePane(paneIndex);
         this.indicatorPanes.delete(type);
 

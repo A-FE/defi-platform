@@ -1,47 +1,43 @@
-import { KlineInterval } from './market';
+import { KlineInterval, KlineBar } from './market';
 import { DepthItem, TickerData, AssetData } from './market';
 import { WalletInfo } from './solana';
-import { IndicatorKlineItem } from './api';
-import { IndicatorType } from './indicator';
 
 /**
- * K线缓存项（统一使用 IndicatorKlineItem）
+ * K线缓存项（V2：使用原始 KlineBar）
  */
 export interface KlineCacheItem {
-  bars: IndicatorKlineItem[];
+  bars: KlineBar[];
   timestamp: number;
 }
 
 /**
- * K线 Store 状态
+ * K线 Store 状态（V2：前端计算版本）
  */
 export interface KlineState {
-  bars: IndicatorKlineItem[];
+  bars: KlineBar[];
   interval: KlineInterval;
   cache: Record<string, KlineCacheItem>;
   isLoading: boolean;
 
-  // Actions - 统一的数据获取方法
+  // Actions - 简化：只获取原始K线
   fetchKlines: (
     symbol: string,
     interval: KlineInterval,
     from: number,
-    to: number,
-    indicators?: Array<{ name: string; params: number[] }>
-  ) => Promise<IndicatorKlineItem[]>;
+    to: number
+  ) => Promise<KlineBar[]>;
 
   subscribeBars: (
     symbol: string,
     interval: KlineInterval,
-    lastBar: IndicatorKlineItem,
-    callback: (bar: IndicatorKlineItem) => void,
-    indicators?: Array<{ name: string; params: number[] }>  // ✅ 新增：支持订阅指标
+    lastBar: KlineBar,
+    callback: (bar: KlineBar) => void
   ) => () => void;
 
   unsubscribeBars: (symbol: string, interval: KlineInterval) => void;
-  updateBar: (symbol: string, bar: IndicatorKlineItem) => void;
-  getFromCache: (symbol: string, interval: KlineInterval) => IndicatorKlineItem[] | null;
-  saveToCache: (symbol: string, interval: KlineInterval, bars: IndicatorKlineItem[]) => void;
+  updateBar: (symbol: string, bar: KlineBar) => void;
+  getFromCache: (symbol: string, interval: KlineInterval) => KlineBar[] | null;
+  saveToCache: (symbol: string, interval: KlineInterval, bars: KlineBar[]) => void;
 }
 
 /**
@@ -54,7 +50,7 @@ export interface DepthState {
   changedPrices: Set<number>;
 
   // Actions
-  subscribe: (symbol: string) => void;
+  subscribe: (symbol: string) => () => void;
   unsubscribe: (symbol: string) => void;
   handleSnapshot: (data: any) => void;
   handleUpdate: (data: any) => void;
@@ -67,7 +63,7 @@ export interface TickerState {
   tickers: Record<string, TickerData>;
 
   // Actions
-  subscribe: (symbol: string) => void;
+  subscribe: (symbol: string) => () => void;
   unsubscribe: (symbol: string) => void;
   updateTicker: (symbol: string, data: TickerData) => void;
   getTickerBySymbol: (symbol: string) => TickerData | undefined;

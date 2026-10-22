@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ISeriesApi, IChartApi } from 'lightweight-charts';
 import { useKlineStore } from '@/stores';
-import { KlineInterval } from '@/types/market';
-import { IndicatorKlineItem } from '@/types/api';
+import { KlineInterval, KlineBar } from '@/types/market';
 
 /**
  * 辅助函数：获取 K 线周期对应的秒数
@@ -21,35 +20,34 @@ function getIntervalSeconds(interval: KlineInterval): number {
 }
 
 /**
- * K线数据管理 Hook V3
+ * K线数据管理 Hook V4 - 前端计算版本
  * 职责：周期切换、数据加载、实时订阅、无限左滑加载历史数据
  *
- * V3 改变（统一接口重构）：
- * - 统一使用 fetchKlines 获取数据（K 线 + 指标）
- * - 接收 enabledIndicators 参数，自动获取指标数据
- * - 返回完整的 klineData，供外部使用
- * - K 线收盘时自动刷新指标
+ * V4 改变（前端计算重构）：
+ * - 只获取原始 K线数据，不再获取指标
+ * - 指标计算由 IndicatorManager 负责（前端计算）
+ * - 返回原始 KlineBar[]，供外部使用
+ * - 简化逻辑，移除指标相关参数
  */
 export function useKlineData(
   symbol: string,
   defaultInterval: KlineInterval,
   chartRef: React.RefObject<IChartApi | null>,
-  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>,
-  enabledIndicators: Array<{ name: string; params: number[] }> = []
+  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>
 ) {
   const [interval, setIntervalState] = useState<KlineInterval>(defaultInterval);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [klineData, setKlineData] = useState<IndicatorKlineItem[]>([]);
+  const [klineData, setKlineData] = useState<KlineBar[]>([]);  // ✅ 改为 KlineBar[]
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
 
   // 追踪已加载的数据范围
   const oldestTimeRef = useRef<number | null>(null);
   const hasMoreHistoryRef = useRef<boolean>(true);
   const isLoadingMoreRef = useRef<boolean>(false);
-  const isReloadingRef = useRef<boolean>(false);  // ✅ 防止重载期间的更新
+  const isReloadingRef = useRef<boolean>(false);
 
-  const { fetchKlines, subscribeBars, unsubscribeBars, getFromCache } = useKlineStore();
+  const { fetchKlines, subscribeBars, unsubscribeBars } = useKlineStore();
 
   // 加载更多历史数据（无限左滑）
   const loadMoreHistory = useCallback(
@@ -91,7 +89,7 @@ export function useKlineData(
 
         console.log(`[loadMoreHistory] 当前最早K线: time=${oldestCurrentBar.time}, open=${oldestCurrentBar.open}`);
 
-        // ✅ 获取更早的历史数据（只获取 K 线，不带指标）
+        // ✅ 获取更早的历史数据（只获取原始 K 线）
         const olderTime = oldestTimeRef.current;
         const from = olderTime - (50 * getIntervalSeconds(currentInterval));
         const to = olderTime - 1;
@@ -100,8 +98,7 @@ export function useKlineData(
           symbol,
           currentInterval,
           from,
-          to,
-          []  // ✅ 空数组 = 只获取 K 线数据
+          to
         );
 
         if (olderBars && olderBars.length > 0) {
@@ -114,7 +111,7 @@ export function useKlineData(
 
           console.log(`[loadMoreHistory] 价格调整: ${lastOlderBar.close} -> ${targetPrice}, 比例: ${priceAdjustment}`);
 
-          // 调整所有历史K线的价格，保持相对关系
+          // ✅ 调整所有历史K线的价格，保持相对关系
           const adjustedOlderBars = olderBars.map((bar) => ({
             ...bar,
             open: bar.open * priceAdjustment,
@@ -122,54 +119,10 @@ export function useKlineData(
             low: bar.low * priceAdjustment,
             close: bar.close * priceAdjustment,
             volume: bar.volume,
-            indicators: {},  // 重置指标，后续重新计算
           }));
 
-          // ✅ 滑动窗口计算指标：用完整数据集（历史 + 当前）计算
-          let finalAdjustedBars = adjustedOlderBars;
-          if (enabledIndicators.length > 0) {
-            try {
-              // 动态导入指标计算模块
-              const { mockCalculateIndicators } = await import('@/services/mock/indicatorMock');
-
-              // ✅ 关键修复：获取当前完整数据（包含指标）
-              const currentCompleteData = klineData;
-
-              // ✅ 合并：历史数据 + 当前数据 = 完整数据集
-              // 这样 MACD 计算器能看到足够的上下文（50 + 100 = 150 根）
-              const allBarsForCalculation = [...adjustedOlderBars, ...currentCompleteData];
-
-              console.log('[loadMoreHistory] 使用滑动窗口计算指标:', {
-                历史数据: adjustedOlderBars.length,
-                当前数据: currentCompleteData.length,
-                完整数据集: allBarsForCalculation.length,
-              });
-
-              // 用完整数据集计算指标
-              const allBarsWithIndicators = mockCalculateIndicators(allBarsForCalculation, {
-                symbol,
-                resolution: currentInterval,
-                from: allBarsForCalculation[0].time,
-                to: allBarsForCalculation[allBarsForCalculation.length - 1].time,
-                indicators: enabledIndicators,
-              });
-
-              // ✅ 只取前 N 根作为新的历史数据（带指标）
-              finalAdjustedBars = allBarsWithIndicators.slice(0, adjustedOlderBars.length);
-
-              console.log('[loadMoreHistory] 滑动窗口指标计算完成:', {
-                输入数据: allBarsForCalculation.length,
-                输出历史数据: finalAdjustedBars.length,
-                示例指标: Object.keys(finalAdjustedBars[finalAdjustedBars.length - 1]?.indicators || {}),
-              });
-            } catch (error) {
-              console.error('[loadMoreHistory] 指标重新计算失败:', error);
-              // 失败时使用调整后的数据（不带指标）
-            }
-          }
-
           // 合并：调整后的旧数据 + 当前数据
-          const allBars = [...finalAdjustedBars, ...currentData];
+          const allBars = [...adjustedOlderBars, ...currentData];
 
           // 转换为 lightweight-charts 格式（仅 OHLC）
           const formattedData = allBars.map((bar: any) => {
@@ -192,13 +145,12 @@ export function useKlineData(
           // 使用 setData() 重新设置所有数据
           seriesRef.current.setData(formattedData as any);
 
-          // ✅ 更新完整数据（包括重新计算的指标）
+          // ✅ 更新完整数据（原始K线）
           setKlineData(prev => {
-            // 获取当前完整数据（包含指标），排除被替换的历史部分
             const currentCompleteData = prev.filter(bar =>
               bar.time >= (oldestCurrentBar.time as number)
             );
-            return [...finalAdjustedBars, ...currentCompleteData];
+            return [...adjustedOlderBars, ...currentCompleteData];
           });
 
           console.log(`[loadMoreHistory] 加载了 ${olderBars.length} 根历史K线（含指标），最早时间: ${new Date(oldestTimeRef.current * 1000).toLocaleString()}`);
@@ -214,24 +166,8 @@ export function useKlineData(
         setIsLoadingMore(false);
       }
     },
-    [symbol, fetchKlines, seriesRef, enabledIndicators]
+    [symbol, fetchKlines, seriesRef]
   );
-
-  // ✅ K 线收盘后重新加载（带指标）
-  const reloadWithIndicators = useCallback(async () => {
-    console.log('[useKlineData] Bar closed, reloading with indicators');
-
-    const now = Math.floor(Date.now() / 1000);
-    const from = now - (100 * getIntervalSeconds(interval));
-
-    try {
-      const bars = await fetchKlines(symbol, interval, from, now, enabledIndicators);
-      setKlineData(bars);
-      console.log('[useKlineData] Indicators reloaded:', bars.length);
-    } catch (error) {
-      console.error('[useKlineData] Failed to reload indicators:', error);
-    }
-  }, [symbol, interval, enabledIndicators, fetchKlines]);
 
   // 加载 K线数据
   const loadKlineData = useCallback(
@@ -246,7 +182,7 @@ export function useKlineData(
       hasMoreHistoryRef.current = true;
 
       try {
-        // ✅ 统一使用 fetchKlines（带指标配置）
+        // ✅ 简化：只获取原始 K线数据
         const now = Math.floor(Date.now() / 1000);
         const from = now - (100 * getIntervalSeconds(newInterval));
 
@@ -254,8 +190,7 @@ export function useKlineData(
           symbol,
           newInterval,
           from,
-          now,
-          enabledIndicators  // ✅ 传入指标配置
+          now
         );
 
         if (bars.length === 0) {
@@ -264,7 +199,7 @@ export function useKlineData(
           return;
         }
 
-        // ✅ 保存完整数据（包括指标）
+        // ✅ 保存原始 K线数据
         setKlineData(bars);
 
         // 记录最旧的时间戳
@@ -308,7 +243,7 @@ export function useKlineData(
           }
         }, 100);
 
-        // 订阅新周期 WebSocket（传入最后一根 K 线的信息和指标配置）
+        // 订阅新周期 WebSocket
         const lastBar = bars[bars.length - 1];
         const unsubscribe = subscribeBars(symbol, newInterval, lastBar, (bar) => {
           // ✅ 防止在重载期间更新（避免 "Cannot update oldest data" 错误）
@@ -350,13 +285,13 @@ export function useKlineData(
               close: bar.close,
             });
 
-            // ✅ 更新 klineData 状态（包含新的指标数据）
+            // ✅ 更新 klineData 状态
             setKlineData(prev => {
               const newData = [...prev];
               const lastIndex = newData.findIndex(b => b.time === bar.time);
 
               if (lastIndex >= 0) {
-                // 更新现有 bar（合并指标数据）
+                // 更新现有 bar
                 newData[lastIndex] = bar;
               } else {
                 // 添加新 bar
@@ -368,7 +303,6 @@ export function useKlineData(
 
             console.log('[useKlineData] Real-time update applied:', {
               time: new Date(time * 1000).toLocaleString(),
-              hasIndicators: Object.keys(bar.indicators).length > 0,
             });
           } catch (error) {
             console.error('[useKlineData] Failed to update series:', {
@@ -378,14 +312,7 @@ export function useKlineData(
               lastBar: seriesData[seriesData.length - 1],
             });
           }
-
-          // ✅ K 线收盘时不再需要重新加载（指标已实时计算）
-          // 注释掉原有的重载逻辑，因为指标已经通过 WebSocket 推送了
-          // if (bar.isClosed) {
-          //   console.log('[useKlineData] Bar closed, triggering indicator reload');
-          //   reloadWithIndicators();
-          // }
-        }, enabledIndicators);  // ✅ 传入指标配置
+        });
 
         // 保存取消订阅函数到 ref
         unsubscribeRef.current = unsubscribe;
@@ -403,12 +330,12 @@ export function useKlineData(
         setIsLoading(false);
       }
     },
-    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef, enabledIndicators, reloadWithIndicators]
+    [symbol, fetchKlines, subscribeBars, seriesRef, chartRef]
   );
 
-  // 监听周期和指标配置变化
+  // 监听周期变化
   useEffect(() => {
-    console.log('[useKlineData] Interval or indicators changed, reloading');
+    console.log('[useKlineData] Interval changed, reloading');
     loadKlineData(interval);
 
     // 清理：取消订阅
@@ -418,7 +345,7 @@ export function useKlineData(
         unsubscribeRef.current = undefined;
       }
     };
-  }, [interval, enabledIndicators, loadKlineData]);
+  }, [interval, loadKlineData]);
 
   // 监听可视范围变化，触发无限加载
   useEffect(() => {
@@ -451,6 +378,6 @@ export function useKlineData(
     },
     isLoading,
     isLoadingMore,
-    klineData,  // ✅ 返回完整数据（包括指标）
+    klineData,  // ✅ 返回原始 K线数据
   };
 }
