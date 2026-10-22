@@ -1,3 +1,6 @@
+/* eslint-disable complexity */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable max-lines-per-function */
 import { create } from 'zustand';
 import { DepthState } from '@/types/store';
 import { DepthItem } from '@/types/market';
@@ -21,113 +24,161 @@ export const useDepthStore = create<DepthState>((set, get) => {
     sequence: 0,
     changedPrices: new Map(),
 
-  /**
-   * 订阅订单簿深度
-   */
-  subscribe: (symbol: string) => {
-    // 1. 首次获取快照
-    const snapshot = depthMockService.generateSnapshot(symbol, DEPTH_LEVELS);
-    get().handleSnapshot(snapshot);
+    /**
+     * 订阅订单簿深度
+     */
+    subscribe: (symbol: string) => {
+      // 1. 首次获取快照
+      const snapshot = depthMockService.generateSnapshot(symbol, DEPTH_LEVELS);
+      get().handleSnapshot(snapshot);
 
-    // 2. 订阅增量更新
-    const unsubscribeSnapshot = wsCenter.subscribe('depth_snapshot', (message) => {
-      if (message.symbol === symbol) {
-        get().handleSnapshot(message);
+      // 2. 订阅增量更新
+      const unsubscribeSnapshot = wsCenter.subscribe('depth_snapshot', (message) => {
+        if (message.symbol === symbol) {
+          get().handleSnapshot(message);
+        }
+      });
+
+      const unsubscribeUpdate = wsCenter.subscribe('depth_update', (message) => {
+        if (message.symbol === symbol) {
+          get().handleUpdate(message);
+        }
+      });
+
+      // 开发阶段：使用 Mock 数据模拟实时更新
+      // ✅ 性能优化：降低更新频率 100ms → 300ms，减少 CPU 负载
+      const mockInterval = setInterval(() => {
+        const update = depthMockService.generateUpdate(symbol);
+        get().handleUpdate(update);
+      }, 300); // 每 300ms 更新一次（从 100ms 优化而来）
+
+      // 清理函数
+      return () => {
+        unsubscribeSnapshot();
+        unsubscribeUpdate();
+        clearInterval(mockInterval);
+      };
+    },
+
+    /**
+     * 取消订阅
+     */
+    unsubscribe: (symbol: string) => {
+      wsCenter.unsubscribeSymbol(symbol, ['depth_snapshot', 'depth_update']);
+    },
+
+    /**
+     * 处理快照
+     * ✅ 性能优化：使用 Map 代替 Set
+     */
+    handleSnapshot: (data: any) => {
+      set({
+        bids: data.bids || [],
+        asks: data.asks || [],
+        sequence: data.sequence || 0,
+        changedPrices: new Map(),
+      });
+    },
+
+    /**
+     * 处理增量更新
+     * ✅ 性能优化 V2：只在数据真正变化时才更新 state，避免不必要的重渲染
+     */
+    handleUpdate: (data: any) => {
+      const { bids: currentBids, asks: currentAsks, sequence: currentSeq } = get();
+
+      // 序列号校验（防乱序）
+      if (data.sequence && data.sequence <= currentSeq) {
+        console.warn('[Depth] Outdated update, ignoring');
+        return;
       }
-    });
 
-    const unsubscribeUpdate = wsCenter.subscribe('depth_update', (message) => {
-      if (message.symbol === symbol) {
-        get().handleUpdate(message);
+      // ✅ 关键优化：检查是否有实际更新
+      const hasBidsUpdate = data.bids && data.bids.length > 0;
+      const hasAsksUpdate = data.asks && data.asks.length > 0;
+
+      // 如果没有任何更新，直接返回
+      if (!hasBidsUpdate && !hasAsksUpdate) {
+        return;
       }
-    });
 
-    // 开发阶段：使用 Mock 数据模拟实时更新
-    // ✅ 性能优化：降低更新频率 100ms → 300ms，减少 CPU 负载
-    const mockInterval = setInterval(() => {
-      const update = depthMockService.generateUpdate(symbol);
-      get().handleUpdate(update);
-    }, 300); // 每 300ms 更新一次（从 100ms 优化而来）
+      // ✅ 性能优化：使用 Map 记录变化的价格及其版本号
+      changeVersion++;
+      const changedPricesMap = new Map<number, number>();
+      let newBids = currentBids;
+      let newAsks = currentAsks;
+      let bidsChanged = false;
+      let asksChanged = false;
 
-    // 清理函数
-    return () => {
-      unsubscribeSnapshot();
-      unsubscribeUpdate();
-      clearInterval(mockInterval);
-    };
-  },
+      // 更新买盘
+      if (hasBidsUpdate) {
+        const updated = updateDepthSide(currentBids, data.bids, 'desc', changedPricesMap, changeVersion);
+        const trimmed = updated.slice(0, DEPTH_LEVELS);
+        // ✅ 只在数据真正变化时才更新引用
+        if (!areDepthArraysEqual(currentBids, trimmed)) {
+          newBids = trimmed;
+          bidsChanged = true;
+        }
+      }
 
-  /**
-   * 取消订阅
-   */
-  unsubscribe: (symbol: string) => {
-    wsCenter.unsubscribeSymbol(symbol, ['depth_snapshot', 'depth_update']);
-  },
+      // 更新卖盘
+      if (hasAsksUpdate) {
+        const updated = updateDepthSide(currentAsks, data.asks, 'asc', changedPricesMap, changeVersion);
+        const trimmed = updated.slice(0, DEPTH_LEVELS);
+        // ✅ 只在数据真正变化时才更新引用
+        if (!areDepthArraysEqual(currentAsks, trimmed)) {
+          newAsks = trimmed;
+          asksChanged = true;
+        }
+      }
 
-  /**
-   * 处理快照
-   * ✅ 性能优化：使用 Map 代替 Set
-   */
-  handleSnapshot: (data: any) => {
-    set({
-      bids: data.bids || [],
-      asks: data.asks || [],
-      sequence: data.sequence || 0,
-      changedPrices: new Map(),
-    });
-  },
+      // ✅ 只在有实际变化或有高亮需求时才更新 state
+      const hasChanges = bidsChanged || asksChanged || changedPricesMap.size > 0;
 
-  /**
-   * 处理增量更新
-   * ✅ 性能优化：使用 Map + 版本号追踪变化，避免每次创建新实例
-   */
-  handleUpdate: (data: any) => {
-    const { bids: currentBids, asks: currentAsks, sequence: currentSeq } = get();
+      if (!hasChanges) {
+        return;
+      }
 
-    // 序列号校验（防乱序）
-    if (data.sequence && data.sequence <= currentSeq) {
-      console.warn('[Depth] Outdated update, ignoring');
-      return;
-    }
+      set({
+        bids: newBids,
+        asks: newAsks,
+        sequence: data.sequence || currentSeq,
+        changedPrices: changedPricesMap,
+      });
 
-    // ✅ 性能优化：使用 Map 记录变化的价格及其版本号
-    changeVersion++;
-    const changedPricesMap = new Map<number, number>();
-    let newBids = [...currentBids];
-    let newAsks = [...currentAsks];
+      // ✅ 性能优化：清理旧定时器，避免多个定时器累积
+      if (highlightTimer) {
+        clearTimeout(highlightTimer);
+      }
 
-    // 更新买盘
-    if (data.bids && data.bids.length > 0) {
-      newBids = updateDepthSide(newBids, data.bids, 'desc', changedPricesMap, changeVersion);
-      newBids = newBids.slice(0, DEPTH_LEVELS); // 裁剪只保留指定档位
-    }
-
-    // 更新卖盘
-    if (data.asks && data.asks.length > 0) {
-      newAsks = updateDepthSide(newAsks, data.asks, 'asc', changedPricesMap, changeVersion);
-      newAsks = newAsks.slice(0, DEPTH_LEVELS);
-    }
-
-    set({
-      bids: newBids,
-      asks: newAsks,
-      sequence: data.sequence || currentSeq,
-      changedPrices: changedPricesMap,
-    });
-
-    // ✅ 性能优化：清理旧定时器，避免多个定时器累积
-    if (highlightTimer) {
-      clearTimeout(highlightTimer);
-    }
-
-    // 1 秒后清除高亮
-    highlightTimer = setTimeout(() => {
-      set({ changedPrices: new Map() });
-      highlightTimer = null;
-    }, 1000);
-  },
-};
+      // 1 秒后清除高亮
+      highlightTimer = setTimeout(() => {
+        set({ changedPrices: new Map() });
+        highlightTimer = null;
+      }, 1000);
+    },
+  };
 });
+
+/**
+ * ✅ 性能优化：比较两个深度数组是否相等（避免不必要的引用更新）
+ *
+ * 只比较价格和数量，不比较累计量（累计量是计算出来的）
+ */
+function areDepthArraysEqual(arr1: DepthItem[], arr2: DepthItem[]): boolean {
+  if (arr1.length !== arr2.length) { return false; }
+
+  for (let i = 0; i < arr1.length; i++) {
+    if (
+      arr1[i].price !== arr2[i].price ||
+      arr1[i].quantity !== arr2[i].quantity
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /**
  * ✅ 性能优化：增量更新深度一侧（避免每次全量排序）

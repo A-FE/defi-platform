@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function */
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -20,7 +21,7 @@ interface IndicatorLegendProps {
  * - 避免 React 状态更新和 RAF 循环，大幅降低内存消耗
  * - 数值更新时只修改文本内容，不重新创建 DOM 节点
  */
-// eslint-disable-next-line max-lines-per-function
+ 
 export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
   // 缓存已创建的 DOM 元素引用
   const legendElementsRef = useRef<Map<string, HTMLSpanElement>>(new Map());
@@ -149,7 +150,7 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
         // 数值（保存引用以便后续更新）
         const valueSpan = document.createElement('span');
         valueSpan.textContent = item.value;
-        valueSpan.style.color = '#ffffff';
+        valueSpan.style.color = item.color;
         // valueSpan.style.fontWeight = '600';
 
         // 生成唯一 key 并缓存引用
