@@ -801,6 +801,7 @@ export class IndicatorManager {
 
     // 创建 DIF 线
     const difSeries = this.chart.addSeries(LineSeries, {
+      priceLineVisible: false,
       color: config.colors[0] || '#2962FF',
       lineWidth: 1,
       lastValueVisible: false,
@@ -809,6 +810,7 @@ export class IndicatorManager {
 
     // 创建 DEA 线
     const deaSeries = this.chart.addSeries(LineSeries, {
+      priceLineVisible: false,
       color: config.colors[1] || '#FF6D00',
       lineWidth: 1,
       lastValueVisible: false,
@@ -817,6 +819,7 @@ export class IndicatorManager {
 
     // 创建 HIST 柱状图
     const histSeries = this.chart.addSeries(HistogramSeries, {
+      priceLineVisible: false,
       priceFormat: {
         type: 'price',
         precision: 4,
@@ -957,24 +960,27 @@ export class IndicatorManager {
     const upperSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[0] || '#FF6D00',
       lineWidth: 1,
-      title: 'UPPER',
+      // title: 'UPPER',
       priceLineVisible: false,
+      lastValueVisible: false,
     }, paneIndex);
     upperSeries.setData(upperData);
 
     const middleSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[1] || '#2962FF',
-      lineWidth: 2,
-      title: 'MIDDLE',
+      lineWidth: 1,
+      // title: 'MIDDLE',
       priceLineVisible: false,
+      lastValueVisible: false,
     }, paneIndex);
     middleSeries.setData(middleData);
 
     const lowerSeries = this.chart.addSeries(LineSeries, {
       color: config.colors[2] || '#4CAF50',
       lineWidth: 1,
-      title: 'LOWER',
+      // title: 'LOWER',
       priceLineVisible: false,
+      lastValueVisible: false,
     }, paneIndex);
     lowerSeries.setData(lowerData);
 
@@ -1099,6 +1105,8 @@ export class IndicatorManager {
     }
 
     const volSeries = this.chart.addSeries(HistogramSeries, {
+      priceLineVisible: false,
+      baseLineVisible: false,
       priceFormat: {
         type: 'volume',
       },

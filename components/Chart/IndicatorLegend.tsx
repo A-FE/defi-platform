@@ -36,6 +36,11 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
     }, {} as Record<number, LegendItem[]>);
   }, [legends]);
 
+  // 生成 groupedByPane 的序列化 key，用于监听结构变化
+  const groupedByPaneKey = useMemo(() => {
+    return JSON.stringify(Object.keys(groupedByPane).sort());
+  }, [groupedByPane]);
+
   // 获取最后一项数据的序列化表示，用于监听数据变化
   const lastLegendKey = useMemo(() => {
     if (legends.length === 0) {return '';}
@@ -45,6 +50,7 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
 
   // 跟踪是否已创建 DOM（避免重复创建）
   const isInitializedRef = useRef(false);
+  const lastGroupedByPaneKeyRef = useRef<string>('');
 
   // 初始化：创建图例 DOM 结构
   useEffect(() => {
@@ -60,8 +66,29 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
       return;
     }
 
-    // 如果已经初始化过，不重复创建 DOM
-    if (isInitializedRef.current) {
+    // 检测 pane 结构是否变化（指标增删）
+    const paneStructureChanged = groupedByPaneKey !== lastGroupedByPaneKeyRef.current;
+
+    // 如果 pane 结构变化，需要清理并重新创建
+    if (paneStructureChanged && isInitializedRef.current) {
+      console.log('[IndicatorLegend] Pane structure changed, will recreate legends');
+      isInitializedRef.current = false;
+      lastGroupedByPaneKeyRef.current = groupedByPaneKey;
+
+      // 清理旧的 legend 元素
+      const allPanes = chart.panes();
+      allPanes.forEach((pane) => {
+        const paneElement = pane.getHTMLElement();
+        if (paneElement) {
+          const oldLegends = paneElement.querySelectorAll('[data-pane-legend]');
+          oldLegends.forEach(el => el.remove());
+        }
+      });
+      legendElementsRef.current.clear();
+    }
+
+    // 如果已经初始化过且结构未变，不重复创建 DOM
+    if (isInitializedRef.current && !paneStructureChanged) {
       console.log('[IndicatorLegend] Already initialized, skipping');
       return;
     }
@@ -144,6 +171,7 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
 
     // 标记为已初始化
     isInitializedRef.current = true;
+    lastGroupedByPaneKeyRef.current = groupedByPaneKey;
 
     // 清理函数：移除所有创建的图例元素
     return () => {
@@ -154,8 +182,9 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
       createdContainers.clear();
       legendElementsRef.current.clear();
       isInitializedRef.current = false;
+      lastGroupedByPaneKeyRef.current = '';
     };
-  }, [chartRef, groupedByPane, lastLegendKey]);
+  }, [chartRef, groupedByPane, lastLegendKey, groupedByPaneKey]);
 
   // 更新数值：当 legends 变化时，只更新文本内容
   useEffect(() => {
