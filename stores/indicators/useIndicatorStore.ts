@@ -10,6 +10,9 @@ interface IndicatorState {
   // 切换指标开关
   toggleIndicator: (type: IndicatorType) => void;
 
+  // 选择主图指标（单选模式，只能选择一个主图指标）
+  selectMainIndicator: (type: IndicatorType | null) => void;
+
   // 更新指标参数
   updateParams: (type: IndicatorType, params: Record<string, number>) => void;
 
@@ -51,6 +54,33 @@ export const useIndicatorStore = create<IndicatorState>()(
             },
           },
         }));
+      },
+
+      selectMainIndicator: (type) => {
+        set((state) => {
+          const newConfigs = { ...state.configs };
+
+          // 关闭所有主图指标
+          Object.keys(newConfigs).forEach((key) => {
+            const indicatorType = key as IndicatorType;
+            if (newConfigs[indicatorType].position === 'main') {
+              newConfigs[indicatorType] = {
+                ...newConfigs[indicatorType],
+                enabled: false,
+              };
+            }
+          });
+
+          // 如果传入了 type，则启用该指标
+          if (type) {
+            newConfigs[type] = {
+              ...newConfigs[type],
+              enabled: true,
+            };
+          }
+
+          return { configs: newConfigs };
+        });
       },
 
       updateParams: (type, params) => {

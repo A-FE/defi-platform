@@ -280,10 +280,15 @@ export function useIndicatorLegend({
 
       // 当 dataCache 从空变为有数据，或数据量发生变化时，更新图例
       if (currentSize !== dataCacheSize) {
+        console.log('[useIndicatorLegend] DataCache size changed:', {
+          from: dataCacheSize,
+          to: currentSize,
+        });
         setDataCacheSize(currentSize);
 
         if (currentSize > 0) {
           const newLegends = generateLegends(null);
+          console.log('[useIndicatorLegend] Legends updated:', newLegends.length);
           setLegends(newLegends);
         }
       }
@@ -291,6 +296,14 @@ export function useIndicatorLegend({
 
     // 初始化：生成初始图例
     checkDataCache();
+
+    // 当 enabledIndicators 变化时，强制重新生成图例
+    const allData = Array.from((manager as any).dataCache.values());
+    if (allData.length > 0) {
+      const newLegends = generateLegends(null);
+      console.log('[useIndicatorLegend] Indicators changed, regenerating legends:', newLegends.length);
+      setLegends(newLegends);
+    }
 
     // 使用 timeScale 的 visibleLogicalRangeChange 事件监听数据变化
     const handleRangeChange = () => {

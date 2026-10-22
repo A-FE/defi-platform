@@ -16,11 +16,14 @@ interface ChartControlsProps {
  */
 // eslint-disable-next-line max-lines-per-function
 export function ChartControls({ interval, onIntervalChange }: ChartControlsProps) {
-  const { configs, toggleIndicator } = useIndicatorStore();
+  const { configs, toggleIndicator, selectMainIndicator } = useIndicatorStore();
 
   // 分组：主图指标和副图指标
-  const mainIndicators: IndicatorType[] = ['MA', 'BOLL'];
+  const mainIndicators: IndicatorType[] = ['MA', 'EMA', 'BOLL'];
   const subIndicators: IndicatorType[] = ['RSI', 'MACD', 'KDJ', 'VOL'];
+
+  // 获取当前选中的主图指标
+  const selectedMainIndicator = mainIndicators.find(type => configs[type].enabled) || null;
 
   // 防止 SSR 时 configs 未定义
   if (!configs) {
@@ -51,27 +54,44 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
         {/* 分隔线 */}
         <div className="h-6 w-px bg-gray-700" />
 
-        {/* 主图指标 */}
+        {/* 主图指标（单选 Radio） */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400 font-medium">主图</span>
+
+          {/* 无指标选项 */}
+          <button
+            onClick={() => {
+              console.info('[ChartControls] 🖱️ 关闭主图指标');
+              selectMainIndicator(null);
+            }}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+              selectedMainIndicator === null
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+            }`}
+          >
+            无
+          </button>
+
           {mainIndicators.map((type) => {
             const config = configs[type];
             const meta = INDICATOR_META[type];
+            const isSelected = selectedMainIndicator === type;
 
             return (
               <button
                 key={type}
                 onClick={() => {
                   const t0 = performance.now();
-                  console.info(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
+                  console.info(`[ChartControls] 🖱️ 选择主图指标: ${type}`, { timestamp: Date.now() });
 
-                  toggleIndicator(type);
+                  selectMainIndicator(type);
 
                   const t1 = performance.now();
-                  console.info(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
+                  console.info(`[ChartControls] ⏱️ selectMainIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
                 }}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                  config.enabled
+                  isSelected
                     ? 'bg-purple-600 text-white'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
                 }`}

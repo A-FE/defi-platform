@@ -24,6 +24,11 @@ export function useChartInit() {
           background: { color: '#111827' },
           textColor: '#d1d5db',
           attributionLogo: false,
+          panes: {
+            enableResize: true,
+            separatorColor: '#374151', // pane 分割线颜色（灰色）
+            separatorHoverColor: 'rgba(139, 92, 246, 0.3)', // hover 时的颜色（紫色半透明）
+          },
         },
         grid: {
           vertLines: { color: '#1f2937' },
@@ -34,7 +39,7 @@ export function useChartInit() {
           timeVisible: true,
           secondsVisible: false,
         },
-        
+
       });
 
       chartRef.current = chart;
