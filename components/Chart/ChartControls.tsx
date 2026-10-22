@@ -2,9 +2,8 @@
 
 import { useIndicatorStore } from '@/stores';
 import { KlineInterval, IndicatorType } from '@/types';
-import { KLINE_INTERVALS, INTERVAL_LABELS } from '@/constants/api';
+import { KLINE_INTERVALS } from '@/constants/api';
 import { INDICATOR_META } from '@/constants/indicators';
-import { useState } from 'react';
 
 interface ChartControlsProps {
   interval: KlineInterval;
@@ -17,8 +16,6 @@ interface ChartControlsProps {
  */
 export function ChartControls({ interval, onIntervalChange }: ChartControlsProps) {
   const { configs, toggleIndicator } = useIndicatorStore();
-  const [showConfig, setShowConfig] = useState(false);
-  const [selectedType, setSelectedType] = useState<IndicatorType | null>(null);
 
   // 分组：主图指标和副图指标
   const mainIndicators: IndicatorType[] = ['MA', 'EMA', 'BOLL'];
@@ -28,11 +25,6 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
   if (!configs) {
     return null;
   }
-
-  const handleConfigClick = (type: IndicatorType) => {
-    setSelectedType(type);
-    setShowConfig(true);
-  };
 
   return (
     <>
@@ -125,35 +117,7 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
           })}
         </div>
 
-        {/* 右侧：参数配置 */}
-        <div className="ml-auto">
-          <button
-            onClick={() => {
-              // 找到第一个启用的指标
-              const enabledType = Object.entries(configs).find(([_, cfg]) => cfg.enabled)?.[0] as IndicatorType;
-              if (enabledType) {
-                handleConfigClick(enabledType);
-              }
-            }}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-            title="指标参数配置"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-          </button>
-        </div>
+      
       </div>
     </>
   );

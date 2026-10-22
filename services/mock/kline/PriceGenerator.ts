@@ -33,7 +33,7 @@ export class PriceGenerator {
     const close = open * (1 + totalMove);
 
     // 4. 计算 High 和 Low（模拟价格波动范围）
-    const volatility = 0.005 + Math.random() * 0.01; // ✅ 减小波动率 0.5% - 1.5%
+    const volatility = 0.002 + Math.random() * 0.005; // ✅ 减小波动率 0.5% - 1.5%
     const upperWick = Math.random() * volatility; // 上影线
     const lowerWick = Math.random() * volatility; // 下影线
 

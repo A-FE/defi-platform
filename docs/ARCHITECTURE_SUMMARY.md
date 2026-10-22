@@ -129,7 +129,6 @@ components/
 ├── Chart/                  # 📈 K线图模块
 │   ├── KlineChart.tsx          # 主图表组件
 │   ├── ChartControls.tsx       # 控制栏（周期/指标）
-│   ├── IndicatorConfigModal.tsx # 指标配置弹窗
 │   ├── hooks/
 │   │   ├── useChartInit.ts     # 图表初始化
 │   │   ├── useKlineData.ts     # K线数据管理

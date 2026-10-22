@@ -15,7 +15,7 @@ export type KlineInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d' | '1w';
 
 /**
  * K线数据
- * @deprecated 请使用 IndicatorKlineItem 代替（统一数据结构）
+ * 
  */
 export interface KlineBar {
   time: number;        // UTC 秒级时间戳
@@ -29,7 +29,7 @@ export interface KlineBar {
 
 /**
  * 统一的 K 线类型别名
- * 所有新代码应使用 IndicatorKlineItem（从 types/api.ts 导入）
+ * @deprecated 请使用 KlineBar 代替（统一数据结构）
  */
 export type { IndicatorKlineItem as KlineItem } from './api';
 

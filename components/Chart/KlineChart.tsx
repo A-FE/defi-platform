@@ -22,7 +22,7 @@ interface KlineChartProps {
  *  - 图表初始化 + K 线数据 + 指标渲染 统一在一个 hook 内
  *  - 简化组件代码，提高可维护性
  */
-export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) {
+export function KlineChart({ symbol, defaultInterval = '1d' }: KlineChartProps) {
   // ✅ 统一的图表 hook（合并了原来的 3 个 hooks）
   const {
     containerRef,
@@ -30,7 +30,7 @@ export function KlineChart({ symbol, defaultInterval = '1h' }: KlineChartProps) 
     isLoadingMore,
     interval,
     setInterval,
-  } = useKlineChart(symbol, defaultInterval);
+  } = useKlineChart({ symbol, initialInterval: defaultInterval });
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 rounded-lg border border-gray-800 p-4">

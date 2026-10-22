@@ -1,22 +1,23 @@
-import { useRef, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createChart, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
+import { IndicatorManager } from '@/services/indicators/IndicatorManager';
 
 /**
  * 图表初始化 Hook
- * 职责：创建单个 chart，只包含主 pane（K线）
- * 副图 pane 将根据启用的指标动态创建
+ * 职责：创建 chart、series 和 IndicatorManager
  */
 export function useChartInit() {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const managerRef = useRef<IndicatorManager | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     try {
-      // 创建图表（只包含主 pane）
+      // 创建图表
       const chart = createChart(containerRef.current, {
         width: containerRef.current.clientWidth,
         height: containerRef.current.clientHeight,
@@ -28,11 +29,16 @@ export function useChartInit() {
           vertLines: { color: '#1f2937' },
           horzLines: { color: '#1f2937' },
         },
+        timeScale: {
+          borderColor: '#1f2937',
+          timeVisible: true,
+          secondsVisible: false,
+        },
       });
 
       chartRef.current = chart;
 
-      // 在主 pane (0) 上添加 K 线系列
+      // 添加 K 线系列
       const candlestickSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#10b981',
         downColor: '#ef4444',
@@ -42,7 +48,10 @@ export function useChartInit() {
 
       seriesRef.current = candlestickSeries;
 
-      console.log('Chart initialized with main pane (index 0)');
+      // 初始化指标管理器
+      managerRef.current = new IndicatorManager(chart);
+
+      console.log('[useChartInitialization] Chart initialized');
 
       // 响应式处理
       const handleResize = () => {
@@ -56,13 +65,16 @@ export function useChartInit() {
 
       window.addEventListener('resize', handleResize);
 
-      // 清理
       return () => {
         window.removeEventListener('resize', handleResize);
+        if (managerRef.current) {
+          managerRef.current.clear();
+          managerRef.current = null;
+        }
         chart.remove();
       };
     } catch (error) {
-      console.error('Chart initialization error:', error);
+      console.error('[useChartInitialization] Error:', error);
     }
   }, []);
 
@@ -70,5 +82,6 @@ export function useChartInit() {
     containerRef,
     chartRef,
     seriesRef,
+    managerRef,
   };
 }

@@ -28,7 +28,6 @@ interface IndicatorKlineItem extends KlineBar {
  */
 export class IndicatorManager {
   private chart: IChartApi;
-  private mainSeries: ISeriesApi<'Candlestick'>;
 
   // 指标系列映射（用于更新和销毁）
   private indicatorSeries: Map<string, ISeriesApi<'Line' | 'Histogram'>[]> = new Map();
@@ -45,9 +44,8 @@ export class IndicatorManager {
   // 主 pane 固定为 0
   private readonly MAIN_PANE_INDEX = 0;
 
-  constructor(chart: IChartApi, mainSeries: ISeriesApi<'Candlestick'>) {
+  constructor(chart: IChartApi) {
     this.chart = chart;
-    this.mainSeries = mainSeries;
   }
 
   /**
@@ -56,7 +54,6 @@ export class IndicatorManager {
    * @param configs 指标配置列表
    */
   public updateIndicators(bars: KlineBar[], configs: IndicatorConfig[]): void {
-    const t0 = performance.now();
     const enabledConfigs = configs.filter(c => c.enabled);
 
     if (enabledConfigs.length === 0) {
@@ -85,8 +82,6 @@ export class IndicatorManager {
     }
 
     this.lastBars = bars;
-    const t1 = performance.now();
-    console.log(`[IndicatorManager] ⏱️ 总耗时: ${(t1 - t0).toFixed(2)}ms`);
   }
 
   /**
