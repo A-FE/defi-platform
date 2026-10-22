@@ -11,6 +11,7 @@ import { useInfiniteLoadHistory } from './useInfiniteLoadHistory';
 import { useIndicatorRenderer } from './useIndicatorRenderer';
 import { useEnabledIndicators } from './useEnabledIndicators';
 import { useIndicatorLegend } from './useIndicatorLegend';
+import { useCrosshairListener } from './useCrosshairListener';
 
 interface UseKlineChartProps {
   symbol: string;
@@ -111,7 +112,15 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     enabledIndicators,
   });
 
-  // ========== 7. 周期变化监听 ==========
+  // ========== 7. 十字光标监听（供 PriceTicker 使用）==========
+  useCrosshairListener({
+    chartRef,
+    seriesRef,
+    symbol,
+    klineData: fullKlineData, // 传入完整数据以获取成交量
+  });
+
+  // ========== 8. 周期变化监听 ==========
   useEffect(() => {
     if (!seriesRef.current) {
       console.info('[useKlineChart] ⚠️ seriesRef.current 为 null，跳过加载');

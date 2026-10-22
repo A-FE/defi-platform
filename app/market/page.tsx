@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { Suspense, useState } from 'react';
 import TradingLayout from '@/components/Layout/TradingLayout';
 import { DEFAULT_SYMBOL } from '@/constants/api';
+import PriceTicker from '@/components/Ticker/PriceTicker';
 
 // 动态导入大组件（代码分割）
 const KlineChart = dynamic(() => import('@/components/Chart/KlineChart'), {
@@ -45,17 +46,17 @@ export default function MarketPage() {
       </div> */}
 
       {/* Ticker 行情 */}
-      {/* <div className="mb-6 p-6 bg-gray-900 rounded-lg border border-gray-800">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-6 mb-6 p-6 bg-gray-900 rounded-lg border border-gray-800">
+        <PriceTicker symbol={selectedSymbol} />
+        <div className="flex items-center justify-between">
+          <div className="">
             <h2 className="text-2xl font-bold">{selectedSymbol}</h2>
-            <span className="px-2 py-1 bg-purple-600/20 text-purple-400 text-xs rounded">
+            <span className="flex-shrink-0 inline-block px-2 py-1 bg-purple-600/20 text-purple-400 text-xs rounded">
               现货
             </span>
           </div>
         </div>
-        <PriceTicker symbol={selectedSymbol} />
-      </div> */}
+      </div>
 
       {/* K线图 + 订单簿 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

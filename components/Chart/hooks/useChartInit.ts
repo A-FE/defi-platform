@@ -50,6 +50,7 @@ export function useChartInit() {
         downColor: '#ef4444',
         wickUpColor: '#10b981',
         wickDownColor: '#ef4444',
+        priceLineVisible: false,
       }, 0);
 
       seriesRef.current = candlestickSeries;

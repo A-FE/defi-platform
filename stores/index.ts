@@ -5,3 +5,4 @@ export { useTickerStore } from './ticker/useTickerStore';
 export { useAssetStore } from './asset/useAssetStore';
 export { useTransactionStore } from './transaction/useTransactionStore';
 export { useIndicatorStore } from './indicators/useIndicatorStore';
+export { useChartCrosshairStore } from './chart/useChartCrosshairStore';
