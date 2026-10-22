@@ -52,6 +52,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     chartRef,
     seriesRef,
     fetchKlines,
+    currentKlineData: klineData, // ✅ 传入完整的 K 线数据（包含 volume）
     onDataLoaded: (bars) => {
       setKlineData(bars);
     },

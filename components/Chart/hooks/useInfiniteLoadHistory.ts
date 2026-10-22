@@ -10,6 +10,7 @@ interface UseInfiniteLoadHistoryProps {
   seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>;
   fetchKlines: (symbol: string, interval: KlineInterval, from: number, to: number) => Promise<KlineBar[]>;
   onDataLoaded: (bars: KlineBar[]) => void;
+  currentKlineData: KlineBar[]; // ✅ 新增：从外部传入完整的 K 线数据（包含 volume）
 }
 
 /**
@@ -28,6 +29,7 @@ export function useInfiniteLoadHistory({
   seriesRef,
   fetchKlines,
   onDataLoaded,
+  currentKlineData, // ✅ 接收完整的 K 线数据
 }: UseInfiniteLoadHistoryProps) {
   // ========== 状态管理 ==========
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -49,17 +51,14 @@ export function useInfiniteLoadHistory({
       setIsLoadingMore(true);
 
       try {
-        const currentData = seriesRef.current.data();
+        // ✅ 使用外部传入的完整 K 线数据（包含 volume），而不是从图表获取
+        const currentData = currentKlineData;
 
         if (currentData.length === 0) {
           return;
         }
 
         const oldestCurrentBar = currentData[0];
-
-        if (!('open' in oldestCurrentBar)) {
-          return;
-        }
 
         const targetPrice = oldestCurrentBar.open;
 
@@ -87,13 +86,14 @@ export function useInfiniteLoadHistory({
             high: bar.high * priceAdjustment,
             low: bar.low * priceAdjustment,
             close: bar.close * priceAdjustment,
-            volume: bar.volume,
+            volume: bar.volume, // ✅ 保留 volume
           }));
 
+          // ✅ 合并完整的 K 线数据（包含 volume）
           const allBars = [...adjustedOlderBars, ...currentData];
 
-          // 转换为图表格式
-          const formattedData = allBars.map((bar: any) => {
+          // ✅ 转换为图表格式（只用于图表渲染，OHLC 即可）
+          const formattedData = allBars.map((bar) => {
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
             if (isNaN(time)) return null;
 
@@ -106,10 +106,11 @@ export function useInfiniteLoadHistory({
             };
           }).filter(Boolean);
 
+          // 更新图表（只需要 OHLC）
           seriesRef.current.setData(formattedData as any);
 
-          // 通知外部更新数据
-          onDataLoaded(allBars as KlineBar[]);
+          // ✅ 通知外部更新完整数据（包含 volume）
+          onDataLoaded(allBars);
 
           console.log(`[useInfiniteLoadHistory] 加载了 ${olderBars.length} 根历史K线`);
         } else {
@@ -122,7 +123,7 @@ export function useInfiniteLoadHistory({
         setIsLoadingMore(false);
       }
     },
-    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded]
+    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded, currentKlineData]
   );
 
   // ========== 重置状态 ==========

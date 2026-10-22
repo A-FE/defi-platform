@@ -112,6 +112,7 @@ export function useKlineDataLoader({
           high: lastDisplayedBar.high,
           low: lastDisplayedBar.low,
           close: lastDisplayedBar.close,
+          volume: lastBar.volume, // ✅ 保留 volume 字段
         };
 
         console.log('[loadKlineData] WebSocket 订阅基准价格:', {
@@ -147,14 +148,16 @@ export function useKlineDataLoader({
               close: bar.close,
             });
 
-            // 通知外部更新数据
+            // 通知外部更新数据（✅ 保留完整的 bar 包括 volume）
             onDataLoaded((prev: KlineBar[]) => {
               const newData = [...prev];
               const lastIndex = newData.findIndex(b => b.time === bar.time);
 
               if (lastIndex >= 0) {
+                // ✅ 更新完整的 bar 数据，包括 volume
                 newData[lastIndex] = bar;
               } else {
+                // ✅ 添加完整的 bar 数据，包括 volume
                 newData.push(bar);
               }
 

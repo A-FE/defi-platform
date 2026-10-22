@@ -230,7 +230,6 @@ export class IndicatorManager {
     bars: KlineBar[],
     configs: IndicatorConfig[]
   ): IndicatorKlineItem[] {
-    const t0 = performance.now();
 
     // 初始化：所有bar都带空indicators对象
     const result: IndicatorKlineItem[] = bars.map(bar => ({
@@ -242,9 +241,7 @@ export class IndicatorManager {
     configs.forEach(config => {
       this.calculateSingleIndicator(bars, config, result);
     });
-
-    const t1 = performance.now();
-    console.log(`[IndicatorManager] 计算指标耗时: ${(t1 - t0).toFixed(2)}ms`);
+ 
 
     return result;
   }

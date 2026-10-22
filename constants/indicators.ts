@@ -179,7 +179,7 @@ export const DEFAULT_INDICATOR_CONFIGS: Record<IndicatorType, IndicatorConfig> =
 
   VOL: {
     type: 'VOL',
-    enabled: false,
+    enabled: true,
     position: 'sub',
     params: {},
     colors: [...INDICATOR_META.VOL.defaultColors],
