@@ -70,3 +70,22 @@ export function calculateRSI(
 
   return result;
 }
+
+/**
+ * 计算多周期 RSI
+ * @param bars K线数据
+ * @param periods 周期数组，如 [6, 12, 24]
+ * @returns 多条 RSI 数据
+ */
+export function calculateMultiRSI(
+  bars: KlineBar[],
+  periods: number[],
+): Record<string, SingleIndicatorValue[]> {
+  const result: Record<string, SingleIndicatorValue[]> = {};
+
+  periods.forEach((period) => {
+    result[`RSI${period}`] = calculateRSI(bars, period);
+  });
+
+  return result;
+}

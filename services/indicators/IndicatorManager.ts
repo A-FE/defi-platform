@@ -1,4 +1,5 @@
-import { IChartApi, ISeriesApi, LineData, HistogramData, LineSeries, HistogramSeries } from 'lightweight-charts';
+/* eslint-disable max-lines */
+import { IChartApi, ISeriesApi, LineData, Time, HistogramData, LineSeries, HistogramSeries } from 'lightweight-charts';
 import { KlineBar } from '@/types/market';
 import { IndicatorConfig } from '@/types/indicator';
 import * as calculators from './calculators';
@@ -11,7 +12,7 @@ interface IndicatorKlineItem extends KlineBar {
     ma?: Record<string, number>;
     ema?: Record<string, number>;
     boll?: { upper: number; middle: number; lower: number };
-    rsi?: { rsi: number };
+    rsi?: Record<string, number>;
     macd?: { dif: number; dea: number; macd: number };
     kdj?: { k: number; d: number; j: number };
   };
@@ -182,7 +183,7 @@ export class IndicatorManager {
    */
   private removeIndicator(type: string): void {
     const series = this.indicatorSeries.get(type);
-    if (!series) {return;}
+    if (!series) { return; }
 
     // 只删除系列，不删除 pane（避免图表布局变化）
     if (Array.isArray(series)) {
@@ -262,7 +263,7 @@ export class IndicatorManager {
     configs.forEach(config => {
       this.calculateSingleIndicator(bars, config, result);
     });
- 
+
 
     return result;
   }
@@ -270,6 +271,7 @@ export class IndicatorManager {
   /**
    * ✅ 计算单个指标并合并到结果数组
    */
+  // eslint-disable-next-line complexity, max-lines-per-function
   private calculateSingleIndicator(
     bars: KlineBar[],
     config: IndicatorConfig,
@@ -335,14 +337,21 @@ export class IndicatorManager {
         }
 
         case 'RSI': {
-          const { period = 14 } = config.params;
-          const rsiData = calculators.calculateRSI(bars, period);
+          const periods = Object.values(config.params);
+          const rsiResult = calculators.calculateMultiRSI(bars, periods);
 
-          rsiData.forEach(({ time, value }) => {
-            const index = result.findIndex(b => b.time === time);
-            if (index >= 0) {
-              result[index].indicators.rsi = { rsi: value };
-            }
+          // 合并到 result: result[i].indicators.rsi = { rsi6: xxx, rsi12: xxx, ... }
+          Object.entries(rsiResult).forEach(([key, values]) => {
+            values.forEach(({ time, value }) => {
+              const index = result.findIndex(b => b.time === time);
+              if (index >= 0) {
+                if (!result[index].indicators.rsi) {
+                  result[index].indicators.rsi = {};
+                }
+                const rsiKey = key.toLowerCase(); // "RSI6" -> "rsi6"
+                result[index].indicators.rsi[rsiKey] = value;
+              }
+            });
           });
           break;
         }
@@ -470,7 +479,7 @@ export class IndicatorManager {
             this.updateMACDData(bars, series);
             break;
           case 'RSI':
-            this.updateRSIData(bars, series);
+            this.updateRSIData(bars, series, config);
             break;
           case 'KDJ':
             this.updateKDJData(bars, series);
@@ -510,10 +519,10 @@ export class IndicatorManager {
       if (bar.indicators.macd) {
         const { dif, dea, macd } = bar.indicators.macd;
 
-        difData.push({ time: bar.time as any, value: dif });
-        deaData.push({ time: bar.time as any, value: dea });
+        difData.push({ time: bar.time as Time, value: dif });
+        deaData.push({ time: bar.time as Time, value: dea });
         histData.push({
-          time: bar.time as any,
+          time: bar.time as Time,
           value: macd,
           color: macd >= 0 ? '#26a69a' : '#ef5350',
         });
@@ -528,21 +537,31 @@ export class IndicatorManager {
   }
 
   /**
-   * ✅ 更新 RSI 数据
+   * ✅ 更新 RSI 数据（多周期）
    */
-  private updateRSIData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[]): void {
-    const [rsiSeries] = series;
+  private updateRSIData(bars: IndicatorKlineItem[], series: ISeriesApi<any>[], config: IndicatorConfig): void {
+    const periods = Object.keys(config.params);
 
-    const rsiData: LineData[] = bars
-      .filter((bar) => bar.indicators.rsi)
-      .map((bar) => ({
-        time: bar.time as any,
-        value: bar.indicators.rsi!.rsi,
-      }));
+    periods.forEach((period, index) => {
+      const rsiSeries = series[index];
+      if (!rsiSeries) { return; }
 
-    if (rsiData.length > 0) {
-      rsiSeries.setData(rsiData);
-    }
+      const rsiKey = `rsi${config.params[period]}`;
+      const rsiData: LineData[] = [];
+
+      bars.forEach((bar) => {
+        if (bar.indicators.rsi && bar.indicators.rsi[rsiKey] !== undefined) {
+          rsiData.push({
+            time: bar.time as Time,
+            value: bar.indicators.rsi[rsiKey],
+          });
+        }
+      });
+
+      if (rsiData.length > 0) {
+        rsiSeries.setData(rsiData);
+      }
+    });
   }
 
   /**
@@ -558,9 +577,9 @@ export class IndicatorManager {
     bars.forEach((bar) => {
       if (bar.indicators.kdj) {
         const { k, d, j } = bar.indicators.kdj;
-        kData.push({ time: bar.time as any, value: k });
-        dData.push({ time: bar.time as any, value: d });
-        jData.push({ time: bar.time as any, value: j });
+        kData.push({ time: bar.time as Time, value: k });
+        dData.push({ time: bar.time as Time, value: d });
+        jData.push({ time: bar.time as Time, value: j });
       }
     });
 
@@ -584,9 +603,9 @@ export class IndicatorManager {
     bars.forEach((bar) => {
       if (bar.indicators.boll) {
         const { upper, middle, lower } = bar.indicators.boll;
-        upperData.push({ time: bar.time as any, value: upper });
-        middleData.push({ time: bar.time as any, value: middle });
-        lowerData.push({ time: bar.time as any, value: lower });
+        upperData.push({ time: bar.time as Time, value: upper });
+        middleData.push({ time: bar.time as Time, value: middle });
+        lowerData.push({ time: bar.time as Time, value: lower });
       }
     });
 
@@ -605,7 +624,7 @@ export class IndicatorManager {
 
     periods.forEach((period, index) => {
       const maSeries = series[index];
-      if (!maSeries) {return;}
+      if (!maSeries) { return; }
 
       const maKey = `ma${config.params[period]}`;
       const maData: LineData[] = [];
@@ -613,7 +632,7 @@ export class IndicatorManager {
       bars.forEach((bar) => {
         if (bar.indicators.ma && bar.indicators.ma[maKey] !== undefined) {
           maData.push({
-            time: bar.time as any,
+            time: bar.time as Time,
             value: bar.indicators.ma[maKey],
           });
         }
@@ -633,7 +652,7 @@ export class IndicatorManager {
 
     periods.forEach((period, index) => {
       const emaSeries = series[index];
-      if (!emaSeries) {return;}
+      if (!emaSeries) { return; }
 
       const emaKey = `ema${config.params[period]}`;
       const emaData: LineData[] = [];
@@ -641,7 +660,7 @@ export class IndicatorManager {
       bars.forEach((bar) => {
         if (bar.indicators.ema && bar.indicators.ema[emaKey] !== undefined) {
           emaData.push({
-            time: bar.time as any,
+            time: bar.time as Time,
             value: bar.indicators.ema[emaKey],
           });
         }
@@ -669,7 +688,7 @@ export class IndicatorManager {
         const color = isUp ? '#10b981' : '#ef4444';
 
         return {
-          time: bar.time as any,
+          time: bar.time as Time,
           value: bar.volume,
           color,
         };
@@ -751,17 +770,17 @@ export class IndicatorManager {
         const { dif, dea, macd } = bar.indicators.macd;
 
         difData.push({
-          time: bar.time as any,
+          time: bar.time as Time,
           value: dif,
         });
 
         deaData.push({
-          time: bar.time as any,
+          time: bar.time as Time,
           value: dea,
         });
 
         histData.push({
-          time: bar.time as any,
+          time: bar.time as Time,
           value: macd,
           color: macd >= 0 ? '#26a69a' : '#ef5350',
         });
@@ -805,54 +824,48 @@ export class IndicatorManager {
   }
 
   /**
-   * 渲染 RSI 指标
+   * 渲染 RSI 指标（多周期）
    */
   private renderRSI(bars: IndicatorKlineItem[], config: IndicatorConfig): void {
     const paneIndex = this.getOrCreatePane(config);
 
-    const rsiData: LineData[] = bars
-      .filter((bar) => bar.indicators.rsi)
-      .map((bar) => ({
-        time: bar.time as any,
-        value: bar.indicators.rsi!.rsi,
-      }));
-
-    if (rsiData.length === 0) {
+    if (!bars.some(bar => bar.indicators.rsi)) {
       console.warn('[IndicatorManager] No RSI data to render');
       return;
     }
 
-    const rsiSeries = this.chart.addSeries(LineSeries, {
-      color: config.colors[0] || '#2962FF',
-      lineWidth: 2,
-      title: 'RSI',
-      priceLineVisible: false,
-      lastValueVisible: false,
-    }, paneIndex);
-    rsiSeries.setData(rsiData);
+    const series: ISeriesApi<'Line'>[] = [];
+    const periods = Object.keys(config.params);
 
-    // 添加超买超卖线
-    rsiSeries.createPriceLine({
-      price: 70,
-      color: '#ef4444',
-      lineStyle: 2,
-      lineWidth: 1,
-      axisLabelVisible: true,
-      title: 'Overbought',
+    periods.forEach((period, index) => {
+      const rsiKey = `rsi${config.params[period]}`;
+      const rsiData: LineData[] = [];
+
+      bars.forEach((bar) => {
+        if (bar.indicators.rsi && bar.indicators.rsi[rsiKey] !== undefined) {
+          rsiData.push({
+            time: bar.time as Time,
+            value: bar.indicators.rsi[rsiKey],
+          });
+        }
+      });
+
+      if (rsiData.length > 0) {
+        const rsiSeries = this.chart.addSeries(LineSeries, {
+          color: config.colors[index] || '#2962FF',
+          lineWidth: 1,
+          // title: `RSI(${config.params[period]})`,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        }, paneIndex);
+        rsiSeries.setData(rsiData);
+        series.push(rsiSeries);
+      }
     });
 
-    rsiSeries.createPriceLine({
-      price: 30,
-      color: '#22c55e',
-      lineStyle: 2,
-      lineWidth: 1,
-      axisLabelVisible: true,
-      title: 'Oversold',
-    });
+    this.indicatorSeries.set('RSI', series);
 
-    this.indicatorSeries.set('RSI', [rsiSeries]);
-
-    console.info(`[IndicatorManager] RSI rendered: ${rsiData.length} points on pane ${paneIndex}`);
+    console.info(`[IndicatorManager] RSI rendered: ${series.length} lines on pane ${paneIndex}`);
   }
 
   /**
@@ -869,9 +882,9 @@ export class IndicatorManager {
       if (bar.indicators.kdj) {
         const { k, d, j } = bar.indicators.kdj;
 
-        kData.push({ time: bar.time as any, value: k });
-        dData.push({ time: bar.time as any, value: d });
-        jData.push({ time: bar.time as any, value: j });
+        kData.push({ time: bar.time as Time, value: k });
+        dData.push({ time: bar.time as Time, value: d });
+        jData.push({ time: bar.time as Time, value: j });
       }
     });
 
@@ -923,9 +936,9 @@ export class IndicatorManager {
       if (bar.indicators.boll) {
         const { upper, middle, lower } = bar.indicators.boll;
 
-        upperData.push({ time: bar.time as any, value: upper });
-        middleData.push({ time: bar.time as any, value: middle });
-        lowerData.push({ time: bar.time as any, value: lower });
+        upperData.push({ time: bar.time as Time, value: upper });
+        middleData.push({ time: bar.time as Time, value: middle });
+        lowerData.push({ time: bar.time as Time, value: lower });
       }
     });
 
@@ -984,7 +997,7 @@ export class IndicatorManager {
       bars.forEach((bar) => {
         if (bar.indicators.ma && bar.indicators.ma[maKey] !== undefined) {
           maData.push({
-            time: bar.time as any,
+            time: bar.time as Time,
             value: bar.indicators.ma[maKey],
           });
         }
@@ -1028,7 +1041,7 @@ export class IndicatorManager {
       bars.forEach((bar) => {
         if (bar.indicators.ema && bar.indicators.ema[emaKey] !== undefined) {
           emaData.push({
-            time: bar.time as any,
+            time: bar.time as Time,
             value: bar.indicators.ema[emaKey],
           });
         }
@@ -1067,7 +1080,7 @@ export class IndicatorManager {
         const color = isUp ? '#10b981' : '#ef4444';
 
         return {
-          time: bar.time as any,
+          time: bar.time as Time,
           value: bar.volume,
           color,
         };

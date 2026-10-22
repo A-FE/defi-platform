@@ -6,7 +6,7 @@ import { IndicatorConfig, IndicatorMeta, IndicatorType } from '@/types/indicator
 export const INDICATOR_META: Record<IndicatorType, IndicatorMeta> = {
   MA: {
     type: 'MA',
-    name: '移动平均线',
+    name: 'MA',
     description: '简单移动平均线，平滑价格波动，识别趋势方向',
     position: 'main',
     defaultParams: {
@@ -26,7 +26,7 @@ export const INDICATOR_META: Record<IndicatorType, IndicatorMeta> = {
 
   EMA: {
     type: 'EMA',
-    name: '指数移动平均线',
+    name: 'EMA',
     description: '指数加权移动平均线，对近期价格更敏感',
     position: 'main',
     defaultParams: {
@@ -44,7 +44,7 @@ export const INDICATOR_META: Record<IndicatorType, IndicatorMeta> = {
 
   BOLL: {
     type: 'BOLL',
-    name: '布林带',
+    name: 'BOLL',
     description: '价格通道指标，上下轨表示超买超卖区域',
     position: 'main',
     defaultParams: {
@@ -60,15 +60,19 @@ export const INDICATOR_META: Record<IndicatorType, IndicatorMeta> = {
 
   RSI: {
     type: 'RSI',
-    name: '相对强弱指标',
+    name: 'RSI',
     description: '衡量价格变动速度和幅度，识别超买超卖',
     position: 'sub',
     defaultParams: {
-      period: 14,
+      period1: 6,
+      period2: 12,
+      period3: 24,
     },
-    defaultColors: ['#2196f3'],
+    defaultColors: ['#2962FF', '#F23645', '#089981'],
     paramLabels: {
-      period: '周期',
+      period1: '短期',
+      period2: '中期',
+      period3: '长期',
     },
   },
 
@@ -138,7 +142,7 @@ export const DEFAULT_INDICATOR_CONFIGS: Record<IndicatorType, IndicatorConfig> =
     position: 'main',
     params: { ...INDICATOR_META.EMA.defaultParams },
     colors: [...INDICATOR_META.EMA.defaultColors],
-    visible: true,
+    visible: false,
   },
 
   BOLL: {

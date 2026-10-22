@@ -14,11 +14,12 @@ interface ChartControlsProps {
  * K线图控制栏
  * 职责：周期切换 + 指标开关（平铺布局）
  */
+// eslint-disable-next-line max-lines-per-function
 export function ChartControls({ interval, onIntervalChange }: ChartControlsProps) {
   const { configs, toggleIndicator } = useIndicatorStore();
 
   // 分组：主图指标和副图指标
-  const mainIndicators: IndicatorType[] = ['MA', 'EMA', 'BOLL'];
+  const mainIndicators: IndicatorType[] = ['MA', 'BOLL'];
   const subIndicators: IndicatorType[] = ['RSI', 'MACD', 'KDJ', 'VOL'];
 
   // 防止 SSR 时 configs 未定义
@@ -81,9 +82,6 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
             );
           })}
         </div>
-
-        {/* 分隔线 */}
-        <div className="h-6 w-px bg-gray-700" />
 
         {/* 副图指标 */}
         <div className="flex items-center gap-2">

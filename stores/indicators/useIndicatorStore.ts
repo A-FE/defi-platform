@@ -125,7 +125,7 @@ export const useIndicatorStore = create<IndicatorState>()(
       },
     }),
     {
-      name: 'indicator-settings',
+      name: 'indicator-settings-v2',  // 更改版本号，使旧缓存失效
       storage: createJSONStorage(() => localStorage),
     },
   ),

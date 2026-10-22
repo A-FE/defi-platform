@@ -15,7 +15,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix --max-warnings=100"
+      "eslint --fix --max-warnings=10"
     ]
   },
   "dependencies": {
