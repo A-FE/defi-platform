@@ -51,7 +51,7 @@ export class IndicatorManager {
   }
 
   /**
-   * ✅ 统一入口：计算 + 渲染指标
+   * ✅ 统一入口：计算 + 渲染指标（优化版：增量更新）
    * @param bars 原始K线数据
    * @param configs 指标配置列表
    */
@@ -65,30 +65,167 @@ export class IndicatorManager {
       return;
     }
 
-    // Step 1: 计算指标（前端计算）
+    // Step 1: 检查 K 线数据是否变化
+    const barsChanged = this.hasBarsChanged(bars);
+
+    // Step 2: 计算指标（前端计算）
     const barsWithIndicators = this.calculateIndicators(bars, enabledConfigs);
 
-    // Step 2: 检查配置是否变化或系列是否缺失
-    const configChanged = this.hasConfigChanged(enabledConfigs);
-    const seriesMissing = this.hasSeriesMissing(enabledConfigs);
+    // Step 3: 检查参数是否变化
+    const paramsChanged = this.hasConfigChanged(enabledConfigs);
 
-    if (configChanged || seriesMissing) {
-      // 配置变化：完全重建
-      console.log('[IndicatorManager] 🔄 Config changed or series missing, rebuilding all indicators', {
-        configChanged,
-        seriesMissing,
-      });
+    if (paramsChanged) {
+      // 参数变化：完全重建
+      console.log('[IndicatorManager] 🔧 参数变化，完全重建');
       this.renderIndicators(barsWithIndicators, enabledConfigs);
       this.lastConfigs = enabledConfigs;
     } else {
-      // 配置未变且系列存在：只更新数据
-      console.log('[IndicatorManager] Config unchanged, updating data only');
-      this.updateSeriesData(barsWithIndicators, enabledConfigs);
+      // 参数未变：增量更新（添加新的、删除旧的、更新现有的）
+      this.incrementalUpdate(barsWithIndicators, enabledConfigs, barsChanged);
     }
 
     this.lastBars = bars;
     const t1 = performance.now();
     console.log(`[IndicatorManager] ⏱️ 总耗时: ${(t1 - t0).toFixed(2)}ms`);
+  }
+
+  /**
+   * ✅ 检查 K 线数据是否变化
+   */
+  private hasBarsChanged(bars: KlineBar[]): boolean {
+    // 长度变化
+    if (bars.length !== this.lastBars.length) {
+      return true;
+    }
+
+    // 如果长度相同，检查最后一根 K 线是否变化（实时更新）
+    if (bars.length > 0 && this.lastBars.length > 0) {
+      const lastNew = bars[bars.length - 1];
+      const lastOld = this.lastBars[this.lastBars.length - 1];
+
+      return (
+        lastNew.time !== lastOld.time ||
+        lastNew.close !== lastOld.close ||
+        lastNew.open !== lastOld.open ||
+        lastNew.high !== lastOld.high ||
+        lastNew.low !== lastOld.low
+      );
+    }
+
+    return false;
+  }
+
+  /**
+   * ✅ 增量更新：只添加/删除/更新变化的指标
+   */
+  private incrementalUpdate(bars: IndicatorKlineItem[], newConfigs: IndicatorConfig[], barsChanged: boolean): void {
+    const newTypes = new Set(newConfigs.map(c => c.type));
+    const oldTypes = new Set(this.lastConfigs.map(c => c.type));
+
+    console.log('[IndicatorManager] 📊 增量更新开始:', {
+      oldTypes: Array.from(oldTypes),
+      newTypes: Array.from(newTypes),
+      barsChanged,
+    });
+
+    // 1. 删除不再需要的指标
+    for (const oldType of oldTypes) {
+      if (!newTypes.has(oldType)) {
+        console.log(`[IndicatorManager] ➖ 删除指标: ${oldType}`);
+        this.removeIndicator(oldType);
+      }
+    }
+
+    // 2. 添加新的指标
+    for (const config of newConfigs) {
+      if (!oldTypes.has(config.type)) {
+        console.log(`[IndicatorManager] ➕ 添加指标: ${config.type}`);
+        this.renderSingleIndicator(bars, config);
+      }
+    }
+
+    // 3. 更新现有指标的数据（只有当 K 线数据变化时才更新）
+    if (barsChanged) {
+      console.log('[IndicatorManager] 📈 K线数据变化，更新现有指标');
+      for (const config of newConfigs) {
+        if (oldTypes.has(config.type)) {
+          console.log(`[IndicatorManager] 🔄 更新指标数据: ${config.type}`);
+          this.updateSeriesData(bars, [config]);
+        }
+      }
+    } else {
+      console.log('[IndicatorManager] ⏭️ K线数据未变化，跳过更新');
+    }
+
+    this.lastConfigs = newConfigs;
+    console.log('[IndicatorManager] ✅ 增量更新完成');
+  }
+
+  /**
+   * ✅ 删除单个指标（优化版：不删除 pane，避免布局变化）
+   */
+  private removeIndicator(type: string): void {
+    const series = this.indicatorSeries.get(type);
+    if (!series) return;
+
+    // 只删除系列，不删除 pane（避免图表布局变化）
+    if (Array.isArray(series)) {
+      series.forEach(s => {
+        try {
+          this.chart.removeSeries(s);
+        } catch (error) {
+          console.error(`[IndicatorManager] Failed to remove series for ${type}:`, error);
+        }
+      });
+    } else {
+      try {
+        this.chart.removeSeries(series);
+      } catch (error) {
+        console.error(`[IndicatorManager] Failed to remove series for ${type}:`, error);
+      }
+    }
+
+    // 从系列映射表中删除
+    this.indicatorSeries.delete(type);
+
+    // ✅ 保留 pane 不删除，避免布局抖动
+    // pane 会在下次需要时被重用（getOrCreatePane 会找到空闲的 pane）
+    console.log(`[IndicatorManager] ➖ 删除指标 ${type}（保留 pane）`);
+  }
+
+  /**
+   * ✅ 渲染单个指标（用于增量添加）
+   */
+  private renderSingleIndicator(bars: IndicatorKlineItem[], config: IndicatorConfig): void {
+    try {
+      switch (config.type) {
+        case 'MA':
+          this.renderMA(bars, config);
+          break;
+        case 'EMA':
+          this.renderEMA(bars, config);
+          break;
+        case 'BOLL':
+          this.renderBOLL(bars, config);
+          break;
+        case 'RSI':
+          this.renderRSI(bars, config);
+          break;
+        case 'MACD':
+          this.renderMACD(bars, config);
+          break;
+        case 'KDJ':
+          this.renderKDJ(bars, config);
+          break;
+        case 'VOL':
+          this.renderVOL(bars, config);
+          break;
+        default:
+          console.warn(`[IndicatorManager] Unknown indicator type: ${config.type}`);
+      }
+    } catch (error) {
+      console.error(`[IndicatorManager] Failed to render ${config.type}:`, error);
+    }
   }
 
   /**
@@ -260,30 +397,45 @@ export class IndicatorManager {
   }
 
   /**
-   * ✅ 检查指标配置是否变化
+   * ✅ 检查指标配置是否变化（优化版：只检查参数变化，不检查开关状态）
+   *
+   * 关键优化：
+   * - 只有当某个指标的**参数**变化时，才需要完全重建
+   * - 指标的开启/关闭只需要增量添加/删除系列，不需要重建所有
    */
   private hasConfigChanged(newConfigs: IndicatorConfig[]): boolean {
-    if (newConfigs.length !== this.lastConfigs.length) {
-      return true;
+    // 创建新旧配置的映射表：type -> params
+    const newMap = new Map<string, any>();
+    const oldMap = new Map<string, any>();
+
+    newConfigs.forEach(config => {
+      newMap.set(config.type, config.params);
+    });
+
+    this.lastConfigs.forEach(config => {
+      oldMap.set(config.type, config.params);
+    });
+
+    // 检查是否有相同指标的参数发生变化
+    for (const [type, newParams] of newMap.entries()) {
+      const oldParams = oldMap.get(type);
+
+      // 如果旧配置中也有这个指标，比较参数
+      if (oldParams) {
+        const newParamsStr = JSON.stringify(newParams);
+        const oldParamsStr = JSON.stringify(oldParams);
+
+        if (newParamsStr !== oldParamsStr) {
+          console.log(`[IndicatorManager] 🔧 参数变化: ${type}`, {
+            old: oldParams,
+            new: newParams,
+          });
+          return true; // 参数变化，需要重建
+        }
+      }
     }
 
-    // 比较每个指标的类型和参数
-    for (let i = 0; i < newConfigs.length; i++) {
-      const newConfig = newConfigs[i];
-      const oldConfig = this.lastConfigs[i];
-
-      if (!oldConfig || newConfig.type !== oldConfig.type) {
-        return true;
-      }
-
-      // 比较参数
-      const newParams = JSON.stringify(newConfig.params);
-      const oldParams = JSON.stringify(oldConfig.params);
-      if (newParams !== oldParams) {
-        return true;
-      }
-    }
-
+    // 参数都没变化，只是开关状态变化
     return false;
   }
 
@@ -924,7 +1076,21 @@ export class IndicatorManager {
       return existingPaneIndex;
     }
 
-    // 创建新的 pane
+    // ✅ 优化：尝试重用空闲的 pane（没有任何系列的 pane）
+    const allPaneIndices = Array.from(this.indicatorPanes.values());
+    const totalPanes = this.chart.panes().length;
+
+    // 查找空闲 pane：存在但没有被任何指标使用的 pane
+    for (let i = 1; i < totalPanes; i++) {
+      if (!allPaneIndices.includes(i)) {
+        // 找到空闲 pane，重用它
+        this.indicatorPanes.set(config.type, i);
+        console.log(`[IndicatorManager] ♻️ 重用空闲 pane ${i} for ${config.type}`);
+        return i;
+      }
+    }
+
+    // 没有空闲 pane，创建新的
     const paneApi = this.chart.addPane();
     const newPaneIndex = this.chart.panes().length - 1;
 
@@ -933,7 +1099,7 @@ export class IndicatorManager {
 
     this.indicatorPanes.set(config.type, newPaneIndex);
 
-    console.log(`[IndicatorManager] Created pane ${newPaneIndex} for ${config.type}`);
+    console.log(`[IndicatorManager] ➕ 创建新 pane ${newPaneIndex} for ${config.type}`);
     return newPaneIndex;
   }
 
@@ -984,25 +1150,5 @@ export class IndicatorManager {
     });
 
     console.log('[IndicatorManager] All indicators cleared');
-  }
-
-  /**
-   * 移除单个指标
-   */
-  removeIndicator(type: string): void {
-    const series = this.indicatorSeries.get(type);
-    if (series) {
-      series.forEach((s) => {
-        try {
-          this.chart.removeSeries(s);
-        } catch (e) {
-          console.warn(`Failed to remove series for ${type}:`, e);
-        }
-      });
-      this.indicatorSeries.delete(type);
-
-      // 如果是副图指标，移除对应的 pane
-      this.removePaneIfEmpty(type);
-    }
   }
 }

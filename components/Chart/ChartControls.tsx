@@ -5,7 +5,6 @@ import { KlineInterval, IndicatorType } from '@/types';
 import { KLINE_INTERVALS, INTERVAL_LABELS } from '@/constants/api';
 import { INDICATOR_META } from '@/constants/indicators';
 import { useState } from 'react';
-import { IndicatorConfigModal } from './IndicatorConfigModal';
 
 interface ChartControlsProps {
   interval: KlineInterval;
@@ -156,14 +155,6 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
           </button>
         </div>
       </div>
-
-      {/* 参数配置弹窗 */}
-      {showConfig && selectedType && (
-        <IndicatorConfigModal
-          type={selectedType}
-          onClose={() => setShowConfig(false)}
-        />
-      )}
     </>
   );
 }
