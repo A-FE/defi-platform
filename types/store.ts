@@ -41,12 +41,13 @@ export interface KlineState {
 
 /**
  * 深度 Store 状态
+ * ✅ 性能优化：changedPrices 改为 Map 记录价格变化版本号，避免 Set 每次创建新实例
  */
 export interface DepthState {
   bids: DepthItem[];
   asks: DepthItem[];
   sequence: number;
-  changedPrices: Set<number>;
+  changedPrices: Map<number, number>; // price -> version，用于标记变化
 
   // Actions
   subscribe: (symbol: string) => () => void;

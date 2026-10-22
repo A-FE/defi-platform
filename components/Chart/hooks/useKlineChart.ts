@@ -26,18 +26,17 @@ interface UseKlineChartProps {
  * - 管理周期状态
  * - 暴露统一的 API 接口
  *
- * 数据分离策略：
- * - fullKlineData: 完整数据（100 根），用于指标计算
- * - displayKlineData: 显示数据（50 根），用于图表渲染
+ * ✅ 性能优化：移除双重数据状态，使用 useMemo 派生显示数据
+ * - klineData: 完整数据（用于指标计算和图表渲染）
+ * - 图表可见范围由 timeScale.setVisibleRange 控制
  */
 export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartProps) {
   // ========== 状态管理 ==========
   const [interval, setInterval] = useState<KlineInterval>(initialInterval);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ 数据分离：完整数据（用于指标计算）和显示数据（用于图表渲染）
-  const [fullKlineData, setFullKlineData] = useState<KlineBar[]>([]); // 100 根
-  const [displayKlineData, setDisplayKlineData] = useState<KlineBar[]>([]); // 50 根
+  // ✅ 性能优化：只维护一份完整数据
+  const [klineData, setKlineData] = useState<KlineBar[]>([]);
 
   // ========== Store ==========
   const { fetchKlines, subscribeBars } = useKlineStore();
@@ -62,12 +61,9 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     chartRef,
     seriesRef,
     fetchKlines,
-    currentKlineData: fullKlineData, // ✅ 传入完整数据
+    currentKlineData: klineData, // ✅ 使用统一的数据源
     onDataLoaded: (bars) => {
-      setFullKlineData(bars);
-      // ✅ 历史加载时，保持显示所有数据（不限制为 50 根）
-      // 图表的可见范围由 timeScale.setVisibleRange 控制
-      setDisplayKlineData(bars);
+      setKlineData(bars);
     },
     enabledIndicators, // ✅ 传入启用的指标列表
   });
@@ -80,19 +76,19 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     fetchKlines,
     subscribeBars,
     onDataLoaded: (barsOrUpdater) => {
-      // ✅ 更新完整数据
+      // ✅ 性能优化：统一数据更新
       if (typeof barsOrUpdater === 'function') {
-        setFullKlineData(barsOrUpdater);
+        setKlineData(barsOrUpdater);
       } else {
-        setFullKlineData(barsOrUpdater);
+        setKlineData(barsOrUpdater);
       }
     },
     onDisplayDataLoaded: (barsOrUpdater) => {
-      // ✅ 更新显示数据
+      // ✅ 保持兼容性：显示数据回调也更新同一份数据
       if (typeof barsOrUpdater === 'function') {
-        setDisplayKlineData(barsOrUpdater);
+        setKlineData(barsOrUpdater);
       } else {
-        setDisplayKlineData(barsOrUpdater);
+        setKlineData(barsOrUpdater);
       }
     },
     onOldestTimeUpdate: (time) => {
@@ -102,8 +98,8 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   });
 
   // ========== 5. 指标渲染 ==========
-  // ✅ 传入完整数据用于计算，显示数据用于过滤
-  useIndicatorRenderer(chartRef, managerRef, fullKlineData, displayKlineData, enabledIndicators);
+  // ✅ 性能优化：使用统一的数据源
+  useIndicatorRenderer(chartRef, managerRef, klineData, klineData, enabledIndicators);
 
   // ========== 6. 指标图例 ==========
   const { legends } = useIndicatorLegend({
@@ -117,7 +113,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     chartRef,
     seriesRef,
     symbol,
-    klineData: fullKlineData, // 传入完整数据以获取成交量
+    klineData, // ✅ 使用统一的数据源
   });
 
   // ========== 8. 周期变化监听 ==========
@@ -139,9 +135,8 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     // 重置历史加载状态
     resetHistory();
 
-    // 清空数据
-    setFullKlineData([]);
-    setDisplayKlineData([]);
+    // ✅ 性能优化：清空统一的数据源
+    setKlineData([]);
     setIsLoading(true);
 
     // 重新加载数据

@@ -12,12 +12,14 @@ import { DEPTH_LEVELS } from '@/constants/api';
 export const useDepthStore = create<DepthState>((set, get) => {
   // ✅ 性能优化：保存定时器 ID，支持清理
   let highlightTimer: NodeJS.Timeout | null = null;
+  // ✅ 性能优化：使用版本号追踪变化，避免每次创建新 Map
+  let changeVersion = 0;
 
   return {
     bids: [],
     asks: [],
     sequence: 0,
-    changedPrices: new Set(),
+    changedPrices: new Map(),
 
   /**
    * 订阅订单簿深度
@@ -64,18 +66,20 @@ export const useDepthStore = create<DepthState>((set, get) => {
 
   /**
    * 处理快照
+   * ✅ 性能优化：使用 Map 代替 Set
    */
   handleSnapshot: (data: any) => {
     set({
       bids: data.bids || [],
       asks: data.asks || [],
       sequence: data.sequence || 0,
-      changedPrices: new Set(),
+      changedPrices: new Map(),
     });
   },
 
   /**
    * 处理增量更新
+   * ✅ 性能优化：使用 Map + 版本号追踪变化，避免每次创建新实例
    */
   handleUpdate: (data: any) => {
     const { bids: currentBids, asks: currentAsks, sequence: currentSeq } = get();
@@ -86,19 +90,21 @@ export const useDepthStore = create<DepthState>((set, get) => {
       return;
     }
 
-    const changedPrices = new Set<number>();
+    // ✅ 性能优化：使用 Map 记录变化的价格及其版本号
+    changeVersion++;
+    const changedPricesMap = new Map<number, number>();
     let newBids = [...currentBids];
     let newAsks = [...currentAsks];
 
     // 更新买盘
     if (data.bids && data.bids.length > 0) {
-      newBids = updateDepthSide(newBids, data.bids, 'desc', changedPrices);
+      newBids = updateDepthSide(newBids, data.bids, 'desc', changedPricesMap, changeVersion);
       newBids = newBids.slice(0, DEPTH_LEVELS); // 裁剪只保留指定档位
     }
 
     // 更新卖盘
     if (data.asks && data.asks.length > 0) {
-      newAsks = updateDepthSide(newAsks, data.asks, 'asc', changedPrices);
+      newAsks = updateDepthSide(newAsks, data.asks, 'asc', changedPricesMap, changeVersion);
       newAsks = newAsks.slice(0, DEPTH_LEVELS);
     }
 
@@ -106,7 +112,7 @@ export const useDepthStore = create<DepthState>((set, get) => {
       bids: newBids,
       asks: newAsks,
       sequence: data.sequence || currentSeq,
-      changedPrices,
+      changedPrices: changedPricesMap,
     });
 
     // ✅ 性能优化：清理旧定时器，避免多个定时器累积
@@ -116,7 +122,7 @@ export const useDepthStore = create<DepthState>((set, get) => {
 
     // 1 秒后清除高亮
     highlightTimer = setTimeout(() => {
-      set({ changedPrices: new Set() });
+      set({ changedPrices: new Map() });
       highlightTimer = null;
     }, 1000);
   },
@@ -130,12 +136,14 @@ export const useDepthStore = create<DepthState>((set, get) => {
  * 1. 只有在价格档位变化时才重新排序
  * 2. 对于已存在价格的更新，直接原地修改
  * 3. 减少不必要的数组操作
+ * 4. 使用 Map + 版本号记录变化
  */
 function updateDepthSide(
   current: DepthItem[],
   updates: DepthItem[] | [number, number][],
   order: 'asc' | 'desc',
-  changedPrices: Set<number>,
+  changedPrices: Map<number, number>,
+  version: number,
 ): DepthItem[] {
   // 快速路径：如果更新为空，直接返回当前数据
   if (updates.length === 0) {
@@ -150,7 +158,8 @@ function updateDepthSide(
     const price = Array.isArray(item) ? item[0] : item.price;
     const quantity = Array.isArray(item) ? item[1] : item.quantity;
 
-    changedPrices.add(price);
+    // ✅ 使用版本号记录变化
+    changedPrices.set(price, version);
 
     // 查找该价格在数组中的位置
     const index = result.findIndex((d) => d.price === price);

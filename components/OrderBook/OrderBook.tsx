@@ -14,7 +14,12 @@ interface OrderBookProps {
  * ✅ 性能优化：使用 React.memo 避免不必要的重渲染
  */
 const OrderBookComponent = ({ symbol, maxLevels = 15 }: OrderBookProps) => {
-  const { bids, asks, changedPrices, subscribe, unsubscribe } = useDepthStore();
+  // ✅ 性能优化：使用 selector 只订阅需要的数据
+  const bids = useDepthStore((state) => state.bids);
+  const asks = useDepthStore((state) => state.asks);
+  const changedPrices = useDepthStore((state) => state.changedPrices);
+  const subscribe = useDepthStore((state) => state.subscribe);
+  const unsubscribe = useDepthStore((state) => state.unsubscribe);
 
   // 订阅深度数据
   useEffect(() => {
