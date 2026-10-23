@@ -191,6 +191,18 @@ export function useInfiniteLoadHistory({
   }, []);
 
   // ========== 滚动监听 ==========
+  // ✅ 使用 ref 访问动态值，避免依赖变化导致监听器重建
+  const loadMoreHistoryRef = useRef(loadMoreHistory);
+  const isLoadingMoreRef = useRef(isLoadingMore);
+
+  useEffect(() => {
+    loadMoreHistoryRef.current = loadMoreHistory;
+  }, [loadMoreHistory]);
+
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
   useEffect(() => {
     console.info('[useInfiniteLoadHistory] 🎯 Setting up scroll listener:', {
       interval,
@@ -211,31 +223,24 @@ export function useInfiniteLoadHistory({
       const logicalRange = timeScale.getVisibleLogicalRange();
       if (!logicalRange) {return;}
 
-      // ✅ 动态读取最新的 triggerThreshold，不放在依赖数组中
+      // ✅ 动态读取最新值，不依赖闭包
       const currentThreshold = triggerThreshold;
+      const currentIsLoadingMore = isLoadingMoreRef.current;
       const shouldLoad = logicalRange.from < currentThreshold;
 
-      console.info('[useInfiniteLoadHistory] 📊 可视范围变化:', {
-        interval,
-        from: logicalRange.from.toFixed(2),
-        to: logicalRange.to.toFixed(2),
-        triggerThreshold: currentThreshold,
-        shouldLoad,
-        isLoadingMore, // ✅ 显示加载状态
-      });
-
       // ✅ 防止加载过程中重复触发
-      if (isLoadingMore) {
-        console.info('[useInfiniteLoadHistory] ⏸️ Already loading, skip trigger');
+      if (currentIsLoadingMore) {
         return;
       }
 
       // ✅ 使用动态阈值：基于需求最大的指标
       // 当用户滚动到左侧边界附近时，自动加载更多历史数据
-      // 分时图也支持加载历史数据（加载前一天的分时数据）
       if (shouldLoad) {
-        console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载');
-        loadMoreHistory();
+        console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载', {
+          from: logicalRange.from.toFixed(2),
+          threshold: currentThreshold,
+        });
+        loadMoreHistoryRef.current();
       }
     };
 
@@ -245,7 +250,7 @@ export function useInfiniteLoadHistory({
       console.info('[useInfiniteLoadHistory] 🧹 Cleaning up scroll listener');
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
-  }, [interval, chartRef, loadMoreHistory, isLoadingMore]); // ✅ 移除 triggerThreshold 依赖
+  }, [interval]); // ✅ 只依赖 interval，其他都通过 ref 访问
 
   // ========== 对外接口 ==========
   return {
