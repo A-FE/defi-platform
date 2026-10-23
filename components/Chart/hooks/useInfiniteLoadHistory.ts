@@ -44,18 +44,19 @@ export function useInfiniteLoadHistory({
 
   // ========== 动态计算触发阈值 ==========
   // 根据数据量动态调整触发阈值
-  // - 数据少时：使用指标最小需求 + 缓冲区
-  // - 数据多时（如分时图）：使用数据总量的 20%
+  // - 使用数据总量的 30% 作为阈值，最小为 50
+  // - 这样当数据量是 200 时，阈值为 60；数据量是 100 时，阈值为 50
   const triggerThreshold = useMemo(() => {
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
-    const minThreshold = maxRequirement + 10; // 最小阈值：指标需求 + 10
-    const dataBasedThreshold = Math.max(currentKlineData.length * 0.2, minThreshold); // 数据量的 20%
+    const dataBasedThreshold = currentKlineData.length * 0.3; // 30% 的数据量
+    const minThreshold = Math.max(50, maxRequirement + 10); // 最小阈值 50
 
-    const threshold = Math.floor(dataBasedThreshold);
+    const threshold = Math.max(Math.floor(dataBasedThreshold), minThreshold);
 
     console.info('[useInfiniteLoadHistory] 📏 计算触发阈值:', {
       dataCount: currentKlineData.length,
       maxRequirement,
+      dataBasedThreshold: Math.floor(dataBasedThreshold),
       minThreshold,
       threshold,
       indicators: enabledIndicators.map(ind =>
