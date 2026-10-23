@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef } from 'react';
 import { type IChartApi, type ISeriesApi } from 'lightweight-charts';
 import { useChartCrosshairStore } from '@/stores/chart/useChartCrosshairStore';
@@ -5,7 +6,7 @@ import type { KlineBar } from '@/types/market';
 
 interface UseCrosshairListenerProps {
   chartRef: React.MutableRefObject<IChartApi | null>;
-  seriesRef: React.MutableRefObject<ISeriesApi<'Candlestick'> | null>;
+  seriesRef: React.MutableRefObject<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>;
   symbol: string;
   klineData: KlineBar[]; // 完整的 K 线数据，用于查找 volume
 }

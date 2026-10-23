@@ -19,13 +19,15 @@ export const API_ENDPOINTS = {
 
 /**
  * K线周期列表
+ * 'timesharing' 放在第一位
  */
-export const KLINE_INTERVALS: KlineInterval[] = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
+export const KLINE_INTERVALS: KlineInterval[] = ['timesharing', '1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
 /**
  * K线周期显示名称
  */
 export const INTERVAL_LABELS: Record<KlineInterval, string> = {
+  'timesharing': '分时',
   '1m': '1 分钟',
   '5m': '5 分钟',
   '15m': '15 分钟',

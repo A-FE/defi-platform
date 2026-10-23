@@ -12,6 +12,7 @@ import { useIndicatorRenderer } from './useIndicatorRenderer';
 import { useEnabledIndicators } from './useEnabledIndicators';
 import { useIndicatorLegend } from './useIndicatorLegend';
 import { useCrosshairListener } from './useCrosshairListener';
+import { useSeriesTypeSwitch } from './useSeriesTypeSwitch';
 
 interface UseKlineChartProps {
   symbol: string;
@@ -47,10 +48,17 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   // ========== 1. 图表初始化 ==========
   const { containerRef, chartRef, seriesRef, managerRef } = useChartInit();
 
-  // ========== 2. 时间格式更新 ==========
+  // ========== 2. 系列类型切换（K线 ↔ 分时）==========
+  useSeriesTypeSwitch({
+    chartRef,
+    seriesRef,
+    interval,
+  });
+
+  // ========== 3. 时间格式更新 ==========
   useTimeFormatUpdate(chartRef, interval);
 
-  // ========== 3. 无限滚动加载历史数据 ==========
+  // ========== 4. 无限滚动加载历史数据 ==========
   const {
     isLoadingMore,
     resetHistory,

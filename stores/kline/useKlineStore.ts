@@ -9,6 +9,7 @@ import { klineSessionManager, TimeAlignmentUtil } from '@/services/mock/kline';
  */
 function getIntervalSeconds(interval: KlineInterval): number {
   const map: Record<KlineInterval, number> = {
+    'timesharing': 1,  // 分时图：1秒
     '1m': 60,
     '5m': 300,
     '15m': 900,
@@ -119,6 +120,7 @@ export const useKlineStore = create<KlineState>()(
 
         // 根据K线周期动态调整更新频率
         const updateIntervalMap: Record<KlineInterval, number> = {
+          'timesharing': 1000,  // 分时图：1秒
           '1m': 1000,   // 1秒
           '5m': 1000,   // 1秒
           '15m': 2000,  // 2秒

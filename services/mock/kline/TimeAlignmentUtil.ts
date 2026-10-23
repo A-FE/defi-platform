@@ -10,6 +10,7 @@ export class TimeAlignmentUtil {
    */
   static getIntervalMs(interval: KlineInterval): number {
     const map: Record<KlineInterval, number> = {
+      'timesharing': 1000,  // 分时图：1秒
       '1m': 60 * 1000,
       '5m': 5 * 60 * 1000,
       '15m': 15 * 60 * 1000,

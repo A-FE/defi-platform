@@ -5,11 +5,13 @@ import { IndicatorManager } from '@/services/indicators/IndicatorManager';
 /**
  * 图表初始化 Hook
  * 职责：创建 chart、series 和 IndicatorManager
+ * 支持：CandlestickSeries（K线）和 LineSeries（分时图）
  */
 export function useChartInit() {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  // ✅ 支持两种系列类型
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null);
   const managerRef = useRef<IndicatorManager | null>(null);
 
   useEffect(() => {

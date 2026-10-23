@@ -44,14 +44,14 @@ const OrderBookComponent = ({ symbol, maxLevels = 15 }: OrderBookProps) => {
 
     // 遍历可见买盘
     visibleBids.forEach((bid) => {
-      if (bid.total > max) {
+      if (bid.total !== undefined && bid.total > max) {
         max = bid.total;
       }
     });
 
     // 遍历可见卖盘
     visibleAsks.forEach((ask) => {
-      if (ask.total > max) {
+      if (ask.total !== undefined && ask.total > max) {
         max = ask.total;
       }
     });

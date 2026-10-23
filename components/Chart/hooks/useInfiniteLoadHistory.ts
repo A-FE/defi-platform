@@ -9,7 +9,7 @@ interface UseInfiniteLoadHistoryProps {
   symbol: string;
   interval: KlineInterval;
   chartRef: React.RefObject<IChartApi | null>;
-  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>;
+  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>;
   fetchKlines: (symbol: string, interval: KlineInterval, from: number, to: number) => Promise<KlineBar[]>;
   onDataLoaded: (bars: KlineBar[]) => void;
   currentKlineData: KlineBar[]; // ✅ 从外部传入完整的 K 线数据（包含 volume）

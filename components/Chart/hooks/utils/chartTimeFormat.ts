@@ -5,6 +5,7 @@ import { KlineInterval } from '@/types/market';
  */
 export function getIntervalSeconds(interval: KlineInterval): number {
   const map: Record<KlineInterval, number> = {
+    'timesharing': 1,  // 分时图：1秒
     '1m': 60,
     '5m': 300,
     '15m': 900,
@@ -21,6 +22,7 @@ export function getIntervalSeconds(interval: KlineInterval): number {
  */
 export function getTimeFormatOptions(interval: KlineInterval) {
   switch (interval) {
+    case 'timesharing':
     case '1m':
       return {
         timeVisible: true,

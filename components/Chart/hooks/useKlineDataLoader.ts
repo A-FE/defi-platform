@@ -1,3 +1,5 @@
+/* eslint-disable max-lines-per-function */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useRef } from 'react';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import { KlineInterval, KlineBar } from '@/types/market';
@@ -9,7 +11,7 @@ import { calculateTotalDataSize } from '@/utils/indicatorDataRequirements';
 interface UseKlineDataLoaderProps {
   symbol: string;
   chartRef: React.RefObject<IChartApi | null>;
-  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>;
+  seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>;
   fetchKlines: (symbol: string, interval: KlineInterval, from: number, to: number) => Promise<KlineBar[]>;
   subscribeBars: (symbol: string, interval: KlineInterval, lastBar: KlineBar, callback: (bar: KlineBar) => void) => () => void;
   onDataLoaded: (bars: KlineBar[] | ((prev: KlineBar[]) => KlineBar[])) => void; // 完整数据回调
@@ -101,20 +103,32 @@ export function useKlineDataLoader({
 
         console.info('[loadKlineData] 数据加载完成:', {
           total: allBars.length,
+          interval,
         });
 
-        // 渲染 K 线到图表（渲染全部数据）
+        // ✅ 根据周期类型转换数据格式
+        const isTimesharing = interval === 'timesharing';
+
         const data = allBars.map((bar) => {
           const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
           if (isNaN(time)) {throw new Error(`Invalid time: ${bar.time}`);}
 
-          return {
-            time: time as any,
-            open: bar.open,
-            high: bar.high,
-            low: bar.low,
-            close: bar.close,
-          };
+          if (isTimesharing) {
+            // 分时图：LineSeries 需要 { time, value } 格式
+            return {
+              time: time as any,
+              value: bar.close, // 使用收盘价作为折线图的值
+            };
+          } 
+            // K线图：CandlestickSeries 需要 { time, open, high, low, close } 格式
+            return {
+              time: time as any,
+              open: bar.open,
+              high: bar.high,
+              low: bar.low,
+              close: bar.close,
+            };
+          
         });
 
         seriesRef.current.setData(data);
@@ -146,21 +160,16 @@ export function useKlineDataLoader({
         // ⚠️ 重要：使用图表上实际显示的最后一根 K 线的价格
         // 因为历史数据可能经过价格调整（Mock 场景），需要确保 WebSocket 基于调整后的价格继续生成
         const lastFullBar = allBars[allBars.length - 1];
-        const lastDisplayedBar = data[data.length - 1];
 
-        // 创建一个基于显示价格的 lastBar 副本
+        // ✅ 无论是分时图还是 K线图，WebSocket 订阅都使用完整的 KlineBar 格式
         const adjustedLastBar: KlineBar = {
           ...lastFullBar,
-          open: lastDisplayedBar.open,
-          high: lastDisplayedBar.high,
-          low: lastDisplayedBar.low,
-          close: lastDisplayedBar.close,
-          volume: lastFullBar.volume, // ✅ 保留 volume 字段
+          // 分时图和 K线图都使用原始的完整数据
         };
 
         console.info('[loadKlineData] WebSocket 订阅基准价格:', {
           原始: lastFullBar.close,
-          调整后: adjustedLastBar.close,
+          周期: interval,
         });
 
         const unsubscribe = subscribeBars(symbol, interval, adjustedLastBar, (bar) => {
@@ -183,13 +192,25 @@ export function useKlineDataLoader({
           }
 
           try {
-            seriesRef.current.update({
-              time: time as any,
-              open: bar.open,
-              high: bar.high,
-              low: bar.low,
-              close: bar.close,
-            });
+            // ✅ 根据周期类型转换数据格式
+            const isTimesharing = interval === 'timesharing';
+
+            if (isTimesharing) {
+              // 分时图：LineSeries 需要 { time, value } 格式
+              seriesRef.current.update({
+                time: time as any,
+                value: bar.close,
+              });
+            } else {
+              // K线图：CandlestickSeries 需要 OHLC 格式
+              seriesRef.current.update({
+                time: time as any,
+                open: bar.open,
+                high: bar.high,
+                low: bar.low,
+                close: bar.close,
+              });
+            }
 
             // ✅ 通知外部更新完整数据
             onDataLoaded((prev: KlineBar[]) => {
