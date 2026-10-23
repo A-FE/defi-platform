@@ -189,7 +189,6 @@ export function useInfiniteLoadHistory({
     console.info('[useInfiniteLoadHistory] 🎯 Setting up scroll listener:', {
       interval,
       hasChart: Boolean(chartRef.current),
-      triggerThreshold,
     });
 
     if (!chartRef.current) {
@@ -206,13 +205,15 @@ export function useInfiniteLoadHistory({
       const logicalRange = timeScale.getVisibleLogicalRange();
       if (!logicalRange) {return;}
 
-      const shouldLoad = logicalRange.from < triggerThreshold;
+      // ✅ 动态读取最新的 triggerThreshold，不放在依赖数组中
+      const currentThreshold = triggerThreshold;
+      const shouldLoad = logicalRange.from < currentThreshold;
 
       console.info('[useInfiniteLoadHistory] 📊 可视范围变化:', {
         interval,
         from: logicalRange.from.toFixed(2),
         to: logicalRange.to.toFixed(2),
-        triggerThreshold,
+        triggerThreshold: currentThreshold,
         shouldLoad,
         isLoadingMore, // ✅ 显示加载状态
       });
@@ -238,7 +239,7 @@ export function useInfiniteLoadHistory({
       console.info('[useInfiniteLoadHistory] 🧹 Cleaning up scroll listener');
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
-  }, [interval, chartRef, loadMoreHistory, triggerThreshold]);
+  }, [interval, chartRef, loadMoreHistory, isLoadingMore]); // ✅ 移除 triggerThreshold 依赖
 
   // ========== 对外接口 ==========
   return {
