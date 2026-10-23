@@ -12,18 +12,3 @@ export function calculateVOL(bars: KlineBar[]): SingleIndicatorValue[] {
     value: bar.volume,
   }));
 }
-
-/**
- * 获取成交量的涨跌信息（用于颜色区分）
- * @param bars K线数据
- * @returns 成交量涨跌数据
- */
-export function calculateVOLWithTrend(
-  bars: KlineBar[],
-): Array<{ time: number; value: number; isUp: boolean }> {
-  return bars.map((bar, index) => ({
-    time: bar.time,
-    value: bar.volume,
-    isUp: index === 0 ? true : bar.close >= bar.open,
-  }));
-}

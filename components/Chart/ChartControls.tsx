@@ -33,7 +33,6 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
   // ✅ 切换到分时模式时，自动清除所有主图指标
   useEffect(() => {
     if (isTimesharing && selectedMainIndicator !== null) {
-      console.info('[ChartControls] 🔄 进入分时模式，清除主图指标');
       selectMainIndicator(null);
     }
   }, [isTimesharing, selectedMainIndicator, selectMainIndicator]);
@@ -76,10 +75,7 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
 
               {/* 无指标选项 */}
               <button
-                onClick={() => {
-                  console.info('[ChartControls] 🖱️ 关闭主图指标');
-                  selectMainIndicator(null);
-                }}
+                onClick={() => selectMainIndicator(null)}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                   selectedMainIndicator === null
                     ? 'bg-purple-600 text-white'
@@ -97,15 +93,7 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
                 return (
                   <button
                     key={type}
-                    onClick={() => {
-                      const t0 = performance.now();
-                      console.info(`[ChartControls] 🖱️ 选择主图指标: ${type}`, { timestamp: Date.now() });
-
-                      selectMainIndicator(type);
-
-                      const t1 = performance.now();
-                      console.info(`[ChartControls] ⏱️ selectMainIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
-                    }}
+                    onClick={() => selectMainIndicator(type)}
                     className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                       isSelected
                         ? 'bg-purple-600 text-white'
@@ -134,15 +122,7 @@ export function ChartControls({ interval, onIntervalChange }: ChartControlsProps
             return (
               <button
                 key={type}
-                onClick={() => {
-                  const t0 = performance.now();
-                  console.info(`[ChartControls] 🖱️ 点击指标: ${type}`, { timestamp: Date.now() });
-
-                  toggleIndicator(type);
-
-                  const t1 = performance.now();
-                  console.info(`[ChartControls] ⏱️ toggleIndicator 耗时: ${(t1 - t0).toFixed(2)}ms`);
-                }}
+                onClick={() => toggleIndicator(type)}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                   config.enabled
                     ? 'bg-purple-600 text-white'
