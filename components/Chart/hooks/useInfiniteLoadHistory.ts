@@ -56,6 +56,14 @@ export function useInfiniteLoadHistory({
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
     const threshold = Math.max(50, maxRequirement + 10); // 最小 50，确保指标有足够数据
 
+    console.info('[useInfiniteLoadHistory] 📏 固定触发阈值:', {
+      maxRequirement,
+      threshold,
+      indicators: enabledIndicators.map(ind =>
+        `${ind.type}(${Object.values(ind.params).join(',')})`,
+      ),
+    });
+
     return threshold;
   }, [enabledIndicators]); // ✅ 只依赖指标配置
 
