@@ -42,19 +42,21 @@ export function useInfiniteLoadHistory({
   const oldestTimeRef = useRef<number | null>(null);
   const hasMoreHistoryRef = useRef<boolean>(true);
 
-  // ========== 安全缓冲区配置 ==========
-  const SAFETY_BUFFER = 10;
-
   // ========== 动态计算触发阈值 ==========
-  // 根据启用的指标计算触发阈值
-  // 例如：MACD 需要 35 根数据，触发阈值 = 35 + 10 = 45
+  // 根据数据量动态调整触发阈值
+  // - 数据少时：使用指标最小需求 + 缓冲区
+  // - 数据多时（如分时图）：使用数据总量的 20%
   const triggerThreshold = useMemo(() => {
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
-    const threshold = maxRequirement + SAFETY_BUFFER;
+    const minThreshold = maxRequirement + 10; // 最小阈值：指标需求 + 10
+    const dataBasedThreshold = Math.max(currentKlineData.length * 0.2, minThreshold); // 数据量的 20%
+
+    const threshold = Math.floor(dataBasedThreshold);
 
     console.info('[useInfiniteLoadHistory] 📏 计算触发阈值:', {
+      dataCount: currentKlineData.length,
       maxRequirement,
-      safetyBuffer: SAFETY_BUFFER,
+      minThreshold,
       threshold,
       indicators: enabledIndicators.map(ind =>
         `${ind.type}(${Object.values(ind.params).join(',')})`,
@@ -62,7 +64,7 @@ export function useInfiniteLoadHistory({
     });
 
     return threshold;
-  }, [enabledIndicators]);
+  }, [enabledIndicators, currentKlineData.length]);
 
   // ========== 加载历史数据逻辑 ==========
   const loadMoreHistory = useCallback(
@@ -152,7 +154,8 @@ export function useInfiniteLoadHistory({
           // ✅ 通知外部更新完整数据（包含 volume）
           onDataLoaded(allBars);
 
-          console.info(`[useInfiniteLoadHistory] 加载了 ${olderBars.length} 根历史K线`);
+          console.info(`[useInfiniteLoadHistory] 加载了 ${olderBars.length} 根历史K线，总计 ${allBars.length} 根`);
+          console.info(`[useInfiniteLoadHistory] 时间范围: ${allBars[0]?.time} ~ ${allBars[allBars.length - 1]?.time}`);
         } else {
           hasMoreHistoryRef.current = false;
           console.info('[useInfiniteLoadHistory] 没有更多历史数据');
@@ -175,10 +178,21 @@ export function useInfiniteLoadHistory({
 
   // ========== 滚动监听 ==========
   useEffect(() => {
-    if (!chartRef.current) {return;}
+    console.info('[useInfiniteLoadHistory] 🎯 Setting up scroll listener:', {
+      interval,
+      hasChart: Boolean(chartRef.current),
+      triggerThreshold,
+    });
+
+    if (!chartRef.current) {
+      console.warn('[useInfiniteLoadHistory] ⚠️ Chart not available, skipping scroll listener setup');
+      return;
+    }
 
     const chart = chartRef.current;
     const timeScale = chart.timeScale();
+
+    console.info('[useInfiniteLoadHistory] ✅ Scroll listener registered');
 
     const handleVisibleRangeChange = () => {
       const logicalRange = timeScale.getVisibleLogicalRange();
@@ -204,6 +218,7 @@ export function useInfiniteLoadHistory({
     timeScale.subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
 
     return () => {
+      console.info('[useInfiniteLoadHistory] 🧹 Cleaning up scroll listener');
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
   }, [interval, chartRef, loadMoreHistory, triggerThreshold]);
