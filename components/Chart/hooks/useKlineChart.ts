@@ -76,11 +76,6 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     fetchKlines,
     currentKlineData: klineData, // ✅ 使用统一的数据源
     onDataLoaded: (bars) => {
-      console.info('[useKlineChart] 📦 无限加载更新数据:', {
-        count: bars.length,
-        firstTime: bars[0]?.time,
-        lastTime: bars[bars.length - 1]?.time,
-      });
       setKlineData(bars);
     },
     enabledIndicators, // ✅ 传入启用的指标列表
@@ -94,10 +89,6 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
     fetchKlines,
     subscribeBars,
     onDataLoaded: (barsOrUpdater) => {
-      console.info('[useKlineChart] 📡 实时数据更新:', {
-        type: typeof barsOrUpdater,
-        count: typeof barsOrUpdater === 'function' ? 'function' : barsOrUpdater.length,
-      });
       // ✅ 性能优化：统一数据更新
       if (typeof barsOrUpdater === 'function') {
         setKlineData(barsOrUpdater);

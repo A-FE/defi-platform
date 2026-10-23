@@ -56,15 +56,6 @@ export function useInfiniteLoadHistory({
   const triggerThreshold = useMemo(() => {
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
     const threshold = Math.max(50, maxRequirement + 10); // 最小 50，确保指标有足够数据
-
-    console.info('[useInfiniteLoadHistory] 📏 固定触发阈值:', {
-      maxRequirement,
-      threshold,
-      indicators: enabledIndicators.map(ind =>
-        `${ind.type}(${Object.values(ind.params).join(',')})`,
-      ),
-    });
-
     return threshold;
   }, [enabledIndicators]); // ✅ 只依赖指标配置
 
@@ -73,19 +64,12 @@ export function useInfiniteLoadHistory({
     async () => {
       // ✅ 使用 ref 作为锁，防止重复加载
       if (isLoadingRef.current || !hasMoreHistoryRef.current) {
-        console.info('[useInfiniteLoadHistory] ⏭️ Skipping load:', {
-          isLoading: isLoadingRef.current,
-          hasMoreHistory: hasMoreHistoryRef.current,
-        });
         return;
       }
 
       if (!oldestTimeRef.current || !seriesRef.current) {
-        console.warn('[useInfiniteLoadHistory] ⚠️ Missing oldestTime or series ref');
         return;
       }
-
-      console.info('[useInfiniteLoadHistory] 🚀 Starting load, current data count:', currentKlineDataRef.current.length);
 
       // ✅ 先设置锁，再设置状态
       isLoadingRef.current = true;
@@ -118,8 +102,6 @@ export function useInfiniteLoadHistory({
           // 价格调整
           const lastOlderBar = olderBars[olderBars.length - 1];
           const priceAdjustment = targetPrice / lastOlderBar.close;
-
-          console.info(`[useInfiniteLoadHistory] 价格调整: ${lastOlderBar.close} -> ${targetPrice}, 比例: ${priceAdjustment}`);
 
           const adjustedOlderBars = olderBars.map((bar) => ({
             ...bar,
@@ -165,12 +147,8 @@ export function useInfiniteLoadHistory({
 
           // ✅ 通知外部更新完整数据（包含 volume）
           onDataLoaded(allBars);
-
-          console.info(`[useInfiniteLoadHistory] 加载了 ${olderBars.length} 根历史K线，总计 ${allBars.length} 根`);
-          console.info(`[useInfiniteLoadHistory] 时间范围: ${allBars[0]?.time} ~ ${allBars[allBars.length - 1]?.time}`);
         } else {
           hasMoreHistoryRef.current = false;
-          console.info('[useInfiniteLoadHistory] 没有更多历史数据');
         }
       } catch (error) {
         console.error('[useInfiniteLoadHistory] 加载失败:', error);
@@ -228,10 +206,6 @@ export function useInfiniteLoadHistory({
 
       // ✅ 触发加载
       if (shouldLoad) {
-        console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载', {
-          from: logicalRange.from.toFixed(2),
-          threshold: currentThreshold,
-        });
         loadMoreHistoryRef.current();
       }
     };
@@ -239,7 +213,6 @@ export function useInfiniteLoadHistory({
     timeScale.subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
 
     return () => {
-      console.info('[useInfiniteLoadHistory] 🧹 Cleaning up scroll listener');
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
   }, [interval]); // ✅ 只依赖 interval，使用 ref 锁机制防止重复加载
