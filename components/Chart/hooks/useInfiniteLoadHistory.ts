@@ -41,6 +41,12 @@ export function useInfiniteLoadHistory({
 
   const oldestTimeRef = useRef<number | null>(null);
   const hasMoreHistoryRef = useRef<boolean>(true);
+  const currentKlineDataRef = useRef<KlineBar[]>(currentKlineData); // ✅ 使用 ref 存储最新数据
+
+  // ✅ 同步最新数据到 ref
+  useEffect(() => {
+    currentKlineDataRef.current = currentKlineData;
+  }, [currentKlineData]);
 
   // ========== 动态计算触发阈值 ==========
   // 根据数据量动态调整触发阈值
@@ -88,8 +94,8 @@ export function useInfiniteLoadHistory({
       setIsLoadingMore(true);
 
       try {
-        // ✅ 使用外部传入的完整 K 线数据（包含 volume），而不是从图表获取
-        const currentData = currentKlineData;
+        // ✅ 使用 ref 中的最新数据，避免闭包问题
+        const currentData = currentKlineDataRef.current;
 
         if (currentData.length === 0) {
           return;
@@ -174,7 +180,7 @@ export function useInfiniteLoadHistory({
         setIsLoadingMore(false);
       }
     },
-    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded, currentKlineData],
+    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded], // ✅ 移除 currentKlineData 依赖
   );
 
   // ========== 重置状态 ==========
