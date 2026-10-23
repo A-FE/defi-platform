@@ -123,9 +123,12 @@ export class MACDRenderer extends BaseRenderer {
     });
 
     if (difData.length > 0) {
+      console.info(`[MACDRenderer] Updating with ${difData.length} points, time range: ${difData[0]?.time} ~ ${difData[difData.length - 1]?.time}`);
       difSeries.setData(difData);
       deaSeries.setData(deaData);
       histSeries.setData(histData);
+    } else {
+      console.warn('[MACDRenderer] No data to update');
     }
   }
 }

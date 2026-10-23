@@ -64,6 +64,13 @@ export class RSIRenderer extends BaseRenderer {
       return;
     }
 
+    console.info('[RSIRenderer] Updating RSI:', {
+      dataPointsCount: data.length,
+      firstTime: data[0]?.time,
+      lastTime: data[data.length - 1]?.time,
+      seriesCount: this.series.length,
+    });
+
     // 提取所有 RSI keys
     const rsiKeys = Object.keys(data[0]?.values || {}).filter((k) => k.startsWith('rsi'));
 
@@ -81,6 +88,14 @@ export class RSIRenderer extends BaseRenderer {
             value,
           });
         }
+      });
+
+      console.info(`[RSIRenderer] ${rsiKey} data:`, {
+        count: rsiData.length,
+        firstTime: rsiData[0]?.time,
+        lastTime: rsiData[rsiData.length - 1]?.time,
+        firstValue: rsiData[0]?.value,
+        lastValue: rsiData[rsiData.length - 1]?.value,
       });
 
       if (rsiData.length > 0) {

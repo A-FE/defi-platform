@@ -65,6 +65,7 @@ export function useIndicatorRendererV2({
       symbol,
       interval,
       barsCount: klineData.length,
+      timeRange: klineData.length > 0 ? `${klineData[0]?.time} ~ ${klineData[klineData.length - 1]?.time}` : 'empty',
       indicators: enabledIndicators.map(i => i.type),
     });
 
