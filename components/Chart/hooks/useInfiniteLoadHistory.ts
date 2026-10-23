@@ -175,6 +175,12 @@ export function useInfiniteLoadHistory({
 
   // ========== 滚动监听 ==========
   useEffect(() => {
+    // ✅ 分时图不支持无限加载历史数据（只显示当天数据）
+    if (interval === 'timesharing') {
+      console.info('[useInfiniteLoadHistory] ⏭️ 分时图模式，跳过无限加载');
+      return;
+    }
+
     if (!chartRef.current) {return;}
 
     const chart = chartRef.current;
@@ -204,7 +210,7 @@ export function useInfiniteLoadHistory({
     return () => {
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
-  }, [chartRef, loadMoreHistory, triggerThreshold]);
+  }, [interval, chartRef, loadMoreHistory, triggerThreshold]);
 
   // ========== 对外接口 ==========
   return {
