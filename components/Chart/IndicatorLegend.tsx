@@ -72,7 +72,6 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
 
     // 如果 pane 结构变化，需要清理并重新创建
     if (paneStructureChanged && isInitializedRef.current) {
-      console.log('[IndicatorLegend] Pane structure changed, will recreate legends');
       isInitializedRef.current = false;
       lastGroupedByPaneKeyRef.current = groupedByPaneKey;
 
@@ -90,18 +89,11 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
 
     // 如果已经初始化过且结构未变，不重复创建 DOM
     if (isInitializedRef.current && !paneStructureChanged) {
-      console.log('[IndicatorLegend] Already initialized, skipping');
       return;
     }
 
     const panes = chart.panes();
     const createdContainers = new Map<number, HTMLDivElement>();
-
-    console.log('[IndicatorLegend] Initializing legends:', {
-      panesCount: panes.length,
-      groupedByPane: Object.keys(groupedByPane),
-      legendsCount: legends.length,
-    });
 
     // 为每个 pane 创建并插入图例元素
     Object.entries(groupedByPane).forEach(([paneIndex, items]) => {
@@ -118,8 +110,6 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
         console.warn(`[IndicatorLegend] Pane ${paneNum} HTML element not ready`);
         return;
       }
-
-      console.log(`[IndicatorLegend] Creating legend for pane ${paneNum} with ${items.length} items`);
 
       // 创建图例容器
       const legendContainer = document.createElement('div');
@@ -167,7 +157,6 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
       paneElement.appendChild(legendContainer);
 
       createdContainers.set(paneNum, legendContainer);
-      console.log(`[IndicatorLegend] ✅ Legend created for pane ${paneNum}`);
     });
 
     // 标记为已初始化
@@ -176,7 +165,6 @@ export function IndicatorLegend({ legends, chartRef }: IndicatorLegendProps) {
 
     // 清理函数：移除所有创建的图例元素
     return () => {
-      console.log('[IndicatorLegend] Cleaning up legends');
       createdContainers.forEach((element) => {
         element.remove();
       });

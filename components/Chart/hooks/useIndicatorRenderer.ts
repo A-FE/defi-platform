@@ -20,14 +20,6 @@ export function useIndicatorRenderer(
   enabledIndicators: IndicatorConfig[],
 ) {
   useEffect(() => {
-    console.info('[useIndicatorRenderer] 🚀 useEffect 触发:', {
-      hasManager: Boolean(managerRef.current),
-      hasChart: Boolean(chartRef.current),
-      fullDataLength: fullKlineData.length,
-      displayDataLength: displayKlineData.length,
-      enabledCount: enabledIndicators.length,
-      timestamp: Date.now(),
-    });
 
     if (!managerRef.current || !chartRef.current || fullKlineData.length === 0) {
       console.info('[useIndicatorRenderer] ⚠️ 条件不满足，跳过');
@@ -39,12 +31,6 @@ export function useIndicatorRenderer(
       managerRef.current.clear();
       return;
     }
-
-    console.info('[useIndicatorRenderer] 更新指标:', {
-      fullBarsCount: fullKlineData.length,
-      displayBarsCount: displayKlineData.length,
-      indicators: enabledIndicators.map(c => c.type),
-    });
 
     // ✅ 传入完整数据和显示数据
     managerRef.current.updateIndicators(fullKlineData, displayKlineData, enabledIndicators);

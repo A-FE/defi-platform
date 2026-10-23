@@ -52,6 +52,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   useSeriesTypeSwitch({
     chartRef,
     seriesRef,
+    managerRef,
     interval,
   });
 

@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { CandlestickSeries, LineSeries, type IChartApi, type ISeriesApi } from 'lightweight-charts';
 import { KlineInterval } from '@/types/market';
+import type { IndicatorManager } from '@/services/indicators/IndicatorManager';
 
 interface UseSeriesTypeSwitchProps {
   chartRef: React.MutableRefObject<IChartApi | null>;
   seriesRef: React.MutableRefObject<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>;
+  managerRef: React.MutableRefObject<IndicatorManager | null>;
   interval: KlineInterval;
 }
 
@@ -13,10 +15,12 @@ interface UseSeriesTypeSwitchProps {
  * 职责：根据 interval 动态切换 CandlestickSeries 和 LineSeries
  *
  * ⚠️ 注意：切换系列后不立即设置数据，数据由外部的数据加载逻辑统一设置
+ * ✅ 修复：切换时清理指标管理器，避免残留的指标线条
  */
 export function useSeriesTypeSwitch({
   chartRef,
   seriesRef,
+  managerRef,
   interval,
 }: UseSeriesTypeSwitchProps) {
   // 记录上一次的系列类型
@@ -40,6 +44,16 @@ export function useSeriesTypeSwitch({
     });
 
     try {
+      // 0. ✅ 只有在分时与其他周期之间切换时，才清理指标管理器
+      // K线周期之间切换（1m → 5m）不需要清理指标
+      const isCrossingTimesharingBoundary =
+        (prevSeriesTypeRef.current === 'line' && currentSeriesType === 'candlestick') ||
+        (prevSeriesTypeRef.current === 'candlestick' && currentSeriesType === 'line');
+
+      if (isCrossingTimesharingBoundary && managerRef.current) {
+        managerRef.current.clear();
+      }
+
       // 1. 移除旧系列
       if (seriesRef.current) {
         chartRef.current.removeSeries(seriesRef.current);
@@ -80,5 +94,5 @@ export function useSeriesTypeSwitch({
     } catch (error) {
       console.error('[useSeriesTypeSwitch] ❌ 系列切换失败:', error);
     }
-  }, [chartRef, seriesRef, interval]);
+  }, [chartRef, seriesRef, managerRef, interval]);
 }
