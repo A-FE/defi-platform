@@ -175,12 +175,6 @@ export function useInfiniteLoadHistory({
 
   // ========== 滚动监听 ==========
   useEffect(() => {
-    // ✅ 分时图不支持无限加载历史数据（只显示当天数据）
-    if (interval === 'timesharing') {
-      console.info('[useInfiniteLoadHistory] ⏭️ 分时图模式，跳过无限加载');
-      return;
-    }
-
     if (!chartRef.current) {return;}
 
     const chart = chartRef.current;
@@ -191,6 +185,7 @@ export function useInfiniteLoadHistory({
       if (!logicalRange) {return;}
 
       console.info('[useInfiniteLoadHistory] 📊 可视范围变化:', {
+        interval,
         from: logicalRange.from.toFixed(2),
         to: logicalRange.to.toFixed(2),
         triggerThreshold,
@@ -199,6 +194,7 @@ export function useInfiniteLoadHistory({
 
       // ✅ 使用动态阈值：基于需求最大的指标
       // 当用户滚动到左侧边界附近时，自动加载更多历史数据
+      // 分时图也支持加载历史数据（加载前一天的分时数据）
       if (logicalRange.from < triggerThreshold) {
         console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载');
         loadMoreHistory();
