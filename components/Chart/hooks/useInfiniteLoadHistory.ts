@@ -44,6 +44,7 @@ export function useInfiniteLoadHistory({
   const oldestTimeRef = useRef<number | null>(null);
   const hasMoreHistoryRef = useRef<boolean>(true);
   const currentKlineDataRef = useRef<KlineBar[]>(currentKlineData); // ✅ 使用 ref 存储最新数据
+  const isLoadingRef = useRef<boolean>(false); // ✅ 使用 ref 作为锁，防止重复加载
 
   // ✅ 同步最新数据到 ref
   useEffect(() => {
@@ -70,10 +71,10 @@ export function useInfiniteLoadHistory({
   // ========== 加载历史数据逻辑 ==========
   const loadMoreHistory = useCallback(
     async () => {
-      // ✅ 防止重复加载
-      if (isLoadingMore || !hasMoreHistoryRef.current) {
+      // ✅ 使用 ref 作为锁，防止重复加载
+      if (isLoadingRef.current || !hasMoreHistoryRef.current) {
         console.info('[useInfiniteLoadHistory] ⏭️ Skipping load:', {
-          isLoadingMore,
+          isLoading: isLoadingRef.current,
           hasMoreHistory: hasMoreHistoryRef.current,
         });
         return;
@@ -85,6 +86,9 @@ export function useInfiniteLoadHistory({
       }
 
       console.info('[useInfiniteLoadHistory] 🚀 Starting load, current data count:', currentKlineDataRef.current.length);
+
+      // ✅ 先设置锁，再设置状态
+      isLoadingRef.current = true;
       setIsLoadingMore(true);
 
       try {
@@ -171,10 +175,11 @@ export function useInfiniteLoadHistory({
       } catch (error) {
         console.error('[useInfiniteLoadHistory] 加载失败:', error);
       } finally {
+        isLoadingRef.current = false;
         setIsLoadingMore(false);
       }
     },
-    [isLoadingMore, symbol, interval, fetchKlines, seriesRef, onDataLoaded], // ✅ 移除 currentKlineData 依赖
+    [symbol, interval, fetchKlines, seriesRef, onDataLoaded], // ✅ 移除 isLoadingMore 依赖
   );
 
   // ========== 重置状态 ==========
@@ -212,17 +217,16 @@ export function useInfiniteLoadHistory({
       const logicalRange = timeScale.getVisibleLogicalRange();
       if (!logicalRange) {return;}
 
-      // ✅ 动态读取最新值，不依赖闭包
+      // ✅ 动态读取最新值
       const currentThreshold = triggerThreshold;
       const shouldLoad = logicalRange.from < currentThreshold;
 
-      // ✅ 防止加载过程中重复触发（直接检查 state）
-      if (isLoadingMore) {
+      // ✅ 使用 ref 检查锁，避免依赖 state
+      if (isLoadingRef.current) {
         return;
       }
 
-      // ✅ 使用动态阈值：基于需求最大的指标
-      // 当用户滚动到左侧边界附近时，自动加载更多历史数据
+      // ✅ 触发加载
       if (shouldLoad) {
         console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载', {
           from: logicalRange.from.toFixed(2),
@@ -238,7 +242,7 @@ export function useInfiniteLoadHistory({
       console.info('[useInfiniteLoadHistory] 🧹 Cleaning up scroll listener');
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
-  }, [interval, isLoadingMore]); // ✅ 依赖 isLoadingMore，确保加载状态变化时能正确防止重复触发
+  }, [interval]); // ✅ 只依赖 interval，使用 ref 锁机制防止重复加载
 
   // ========== 对外接口 ==========
   return {
