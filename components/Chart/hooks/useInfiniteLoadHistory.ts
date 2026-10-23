@@ -52,6 +52,9 @@ export function useInfiniteLoadHistory({
   // 根据数据量动态调整触发阈值
   // - 使用数据总量的 30% 作为阈值，最小为 50
   // - 这样当数据量是 200 时，阈值为 60；数据量是 100 时，阈值为 50
+  // ✅ 优化：按 10 个数据为单位重新计算，避免每秒都计算
+  const dataLengthBucket = Math.floor(currentKlineData.length / 10) * 10;
+
   const triggerThreshold = useMemo(() => {
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
     const dataBasedThreshold = currentKlineData.length * 0.3; // 30% 的数据量
@@ -71,7 +74,7 @@ export function useInfiniteLoadHistory({
     });
 
     return threshold;
-  }, [enabledIndicators, currentKlineData.length]);
+  }, [enabledIndicators, dataLengthBucket]); // ✅ 依赖 bucket 而不是精确的 length
 
   // ========== 加载历史数据逻辑 ==========
   const loadMoreHistory = useCallback(
