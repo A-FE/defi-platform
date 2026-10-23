@@ -70,14 +70,21 @@ export function useInfiniteLoadHistory({
   // ========== 加载历史数据逻辑 ==========
   const loadMoreHistory = useCallback(
     async () => {
+      // ✅ 防止重复加载
       if (isLoadingMore || !hasMoreHistoryRef.current) {
+        console.info('[useInfiniteLoadHistory] ⏭️ Skipping load:', {
+          isLoadingMore,
+          hasMoreHistory: hasMoreHistoryRef.current,
+        });
         return;
       }
 
       if (!oldestTimeRef.current || !seriesRef.current) {
+        console.warn('[useInfiniteLoadHistory] ⚠️ Missing oldestTime or series ref');
         return;
       }
 
+      console.info('[useInfiniteLoadHistory] 🚀 Starting load, current data count:', currentKlineData.length);
       setIsLoadingMore(true);
 
       try {
@@ -199,18 +206,27 @@ export function useInfiniteLoadHistory({
       const logicalRange = timeScale.getVisibleLogicalRange();
       if (!logicalRange) {return;}
 
+      const shouldLoad = logicalRange.from < triggerThreshold;
+
       console.info('[useInfiniteLoadHistory] 📊 可视范围变化:', {
         interval,
         from: logicalRange.from.toFixed(2),
         to: logicalRange.to.toFixed(2),
         triggerThreshold,
-        shouldLoad: logicalRange.from < triggerThreshold,
+        shouldLoad,
+        isLoadingMore, // ✅ 显示加载状态
       });
+
+      // ✅ 防止加载过程中重复触发
+      if (isLoadingMore) {
+        console.info('[useInfiniteLoadHistory] ⏸️ Already loading, skip trigger');
+        return;
+      }
 
       // ✅ 使用动态阈值：基于需求最大的指标
       // 当用户滚动到左侧边界附近时，自动加载更多历史数据
       // 分时图也支持加载历史数据（加载前一天的分时数据）
-      if (logicalRange.from < triggerThreshold) {
+      if (shouldLoad) {
         console.info('[useInfiniteLoadHistory] 🔄 触发历史数据加载');
         loadMoreHistory();
       }
