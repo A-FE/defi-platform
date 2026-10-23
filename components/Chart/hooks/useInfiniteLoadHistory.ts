@@ -119,21 +119,34 @@ export function useInfiniteLoadHistory({
           // ✅ 合并完整的 K 线数据（包含 volume）
           const allBars = [...adjustedOlderBars, ...currentData];
 
-          // ✅ 转换为图表格式（只用于图表渲染，OHLC 即可）
+          // ✅ 转换为图表格式（根据系列类型转换）
           const formattedData = allBars.map((bar) => {
             const time = typeof bar.time === 'number' ? bar.time : Number(bar.time);
             if (isNaN(time)) {return null;}
 
-            return {
-              time: time as any,
-              open: Number(bar.open.toFixed(2)),
-              high: Number(bar.high.toFixed(2)),
-              low: Number(bar.low.toFixed(2)),
-              close: Number(bar.close.toFixed(2)),
-            };
+            // ✅ 检查是否是分时图（LineSeries）
+            const seriesType = (seriesRef.current as any)?._internal?.__brand;
+            const isLineSeries = seriesType === 'Line' || interval === 'timesharing';
+
+            if (isLineSeries) {
+              // 分时图：只需要 time 和 value（使用 close 价格）
+              return {
+                time: time as any,
+                value: Number(bar.close.toFixed(2)),
+              };
+            } 
+              // K线图：需要 OHLC
+              return {
+                time: time as any,
+                open: Number(bar.open.toFixed(2)),
+                high: Number(bar.high.toFixed(2)),
+                low: Number(bar.low.toFixed(2)),
+                close: Number(bar.close.toFixed(2)),
+              };
+            
           }).filter(Boolean);
 
-          // 更新图表（只需要 OHLC）
+          // 更新图表
           seriesRef.current.setData(formattedData as any);
 
           // ✅ 通知外部更新完整数据（包含 volume）
