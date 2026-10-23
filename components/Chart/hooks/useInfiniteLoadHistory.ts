@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable max-lines-per-function */
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import { KlineInterval, KlineBar } from '@/types/market';
@@ -54,14 +56,6 @@ export function useInfiniteLoadHistory({
     const maxRequirement = getMaxIndicatorDataRequirement(enabledIndicators);
     const threshold = Math.max(50, maxRequirement + 10); // 最小 50，确保指标有足够数据
 
-    console.info('[useInfiniteLoadHistory] 📏 固定触发阈值:', {
-      maxRequirement,
-      threshold,
-      indicators: enabledIndicators.map(ind =>
-        `${ind.type}(${Object.values(ind.params).join(',')})`,
-      ),
-    });
-
     return threshold;
   }, [enabledIndicators]); // ✅ 只依赖指标配置
 
@@ -82,7 +76,7 @@ export function useInfiniteLoadHistory({
         return;
       }
 
-      console.info('[useInfiniteLoadHistory] 🚀 Starting load, current data count:', currentKlineData.length);
+      console.info('[useInfiniteLoadHistory] 🚀 Starting load, current data count:', currentKlineDataRef.current.length);
       setIsLoadingMore(true);
 
       try {
@@ -185,15 +179,10 @@ export function useInfiniteLoadHistory({
   // ========== 滚动监听 ==========
   // ✅ 使用 ref 访问动态值，避免依赖变化导致监听器重建
   const loadMoreHistoryRef = useRef(loadMoreHistory);
-  const isLoadingMoreRef = useRef(isLoadingMore);
 
   useEffect(() => {
     loadMoreHistoryRef.current = loadMoreHistory;
   }, [loadMoreHistory]);
-
-  useEffect(() => {
-    isLoadingMoreRef.current = isLoadingMore;
-  }, [isLoadingMore]);
 
   useEffect(() => {
     console.info('[useInfiniteLoadHistory] 🎯 Setting up scroll listener:', {
@@ -217,11 +206,10 @@ export function useInfiniteLoadHistory({
 
       // ✅ 动态读取最新值，不依赖闭包
       const currentThreshold = triggerThreshold;
-      const currentIsLoadingMore = isLoadingMoreRef.current;
       const shouldLoad = logicalRange.from < currentThreshold;
 
-      // ✅ 防止加载过程中重复触发
-      if (currentIsLoadingMore) {
+      // ✅ 防止加载过程中重复触发（直接检查 state）
+      if (isLoadingMore) {
         return;
       }
 
@@ -242,7 +230,7 @@ export function useInfiniteLoadHistory({
       console.info('[useInfiniteLoadHistory] 🧹 Cleaning up scroll listener');
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     };
-  }, [interval]); // ✅ 只依赖 interval，其他都通过 ref 访问
+  }, [interval, isLoadingMore]); // ✅ 依赖 isLoadingMore，确保加载状态变化时能正确防止重复触发
 
   // ========== 对外接口 ==========
   return {
