@@ -1,6 +1,7 @@
 import { KlineBar, KlineInterval } from '@/types/market';
 import { TimeAlignmentUtil } from './TimeAlignmentUtil';
 import { PriceGenerator } from './PriceGenerator';
+import { getPriceConfig } from '../priceConfig';
 
 /**
  * K线会话
@@ -14,10 +15,17 @@ export class KlineSession {
   private trendStrength: number;
   private basePrice: number;
 
-  constructor(symbol: string, interval: KlineInterval, basePrice: number = 50000) {
+  constructor(symbol: string, interval: KlineInterval, basePrice?: number) {
     this.symbol = symbol;
     this.interval = interval;
-    this.basePrice = basePrice;
+
+    // 如果没有提供 basePrice，从配置中获取
+    if (basePrice === undefined) {
+      const config = getPriceConfig(symbol);
+      this.basePrice = config.basePrice;
+    } else {
+      this.basePrice = basePrice;
+    }
 
     // 初始化随机趋势
     const trendParams = PriceGenerator.generateTrendParams();

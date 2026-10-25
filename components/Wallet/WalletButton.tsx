@@ -1,43 +1,48 @@
 'use client';
 
-import { useWalletStore } from '@/stores';
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
 
 /**
- * 钱包连接按钮
+ * 钱包连接按钮 - 使用纯 Wagmi
+ * 避免 RainbowKit 的依赖问题
  */
 export function WalletButton() {
-  const { wallet, isConnecting, connect, disconnect } = useWalletStore();
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
 
-  const handleClick = () => {
-    if (wallet?.connected) {
-      disconnect();
-    } else {
-      connect();
-    }
+  // 格式化地址
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  // 格式化地址（显示前 4 位和后 4 位）
-  const formatAddress = (address: string) => {
-    if (!address) {return '';}
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  const handleClick = () => {
+    if (isConnected) {
+      disconnect();
+    } else {
+      // 使用第一个可用的连接器（MetaMask）
+      const connector = connectors[0];
+      if (connector) {
+        connect({ connector });
+      }
+    }
   };
 
   return (
     <button
       onClick={handleClick}
-      disabled={isConnecting}
+      disabled={isPending}
       className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
     >
-      {isConnecting ? (
+      {isPending ? (
         <span className="flex items-center gap-2">
           <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           连接中...
         </span>
-      ) : wallet?.connected ? (
+      ) : isConnected && address ? (
         <span className="flex items-center gap-2">
           <span className="w-2 h-2 bg-green-400 rounded-full" />
-          {formatAddress(wallet.address)}
-          <span className="text-sm opacity-80">| {wallet.balance.toFixed(2)} SOL</span>
+          {formatAddress(address)}
         </span>
       ) : (
         '连接钱包'

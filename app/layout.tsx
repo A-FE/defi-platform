@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import NotificationContainer from '@/components/Notification/NotificationContainer';
+import { Web3Provider } from './providers';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'DeFi Trading Platform - Solana DEX',
-  description: '高性能去中心化交易平台，基于 Solana 区块链',
+  title: 'DeFi Trading Platform - EVM DEX',
+  description: '高性能去中心化交易平台，基于以太坊生态',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
@@ -25,8 +26,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <NotificationContainer />
+        <Web3Provider>
+          {children}
+          <NotificationContainer />
+        </Web3Provider>
       </body>
     </html>
   );

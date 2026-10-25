@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo,  memo } from 'react';
 import { useDepthStore } from '@/stores';
 import { DepthItem } from '@/types/market';
+import EmptyState from '@/components/EmptyState/EmptyState';
 
 interface OrderBookProps {
   symbol: string;
@@ -38,6 +39,9 @@ const OrderBookComponent = ({ symbol, maxLevels = 15 }: OrderBookProps) => {
   const visibleAsks = useMemo(() => asks.slice(0, maxLevels), [asks, maxLevels]);
   const visibleBids = useMemo(() => bids.slice(0, maxLevels), [bids, maxLevels]);
 
+  // 检查是否有数据
+  const hasData = bids.length > 0 || asks.length > 0;
+
   // ✅ 修复：计算所有可见数据中的最大累计量
   const maxTotal = useMemo(() => {
     let max = 0;
@@ -60,40 +64,53 @@ const OrderBookComponent = ({ symbol, maxLevels = 15 }: OrderBookProps) => {
   }, [visibleBids, visibleAsks]);
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 h-[600px] flex flex-col">
-      <h3 className="text-lg font-bold mb-4 text-white">订单簿</h3>
+    <div className="bg-gray-900 h-full flex flex-col">
+      <h3 className="text-lg font-bold px-4 pt-4 pb-2 text-white border-b border-gray-800">订单簿</h3>
 
-      {/* 表头 */}
-      <OrderBookHeader />
+      {!hasData ? (
+        <EmptyState
+          title="暂无数据"
+          message="当前没有可用的订单簿数据"
+        />
+      ) : (
+        <>
+          {/* 表头 */}
+          <div className="px-4 pt-3">
+            <OrderBookHeader />
+          </div>
 
-      {/* 卖盘（倒序显示） */}
-      <div className="flex-1 overflow-hidden flex flex-col-reverse space-y-0.5 space-y-reverse">
-        {visibleAsks.map((ask: DepthItem) => (
-          <DepthRow
-            key={`ask-${ask.price}`}
-            item={ask}
-            type="ask"
-            maxTotal={maxTotal}
-            isChanged={changedPrices.has(ask.price)}
-          />
-        ))}
-      </div>
+          {/* 卖盘（倒序显示） */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col-reverse space-y-0.5 space-y-reverse px-4">
+            {visibleAsks.map((ask: DepthItem) => (
+              <DepthRow
+                key={`ask-${ask.price}`}
+                item={ask}
+                type="ask"
+                maxTotal={maxTotal}
+                isChanged={changedPrices.has(ask.price)}
+              />
+            ))}
+          </div>
 
-      {/* 当前价格 */}
-      <CurrentPrice price={bids[0]?.price || asks[0]?.price || 0} />
+          {/* 当前价格 */}
+          <div className="px-4 py-2">
+            <CurrentPrice price={bids[0]?.price || asks[0]?.price || 0} />
+          </div>
 
-      {/* 买盘 */}
-      <div className="flex-1 overflow-hidden space-y-0.5">
-        {visibleBids.map((bid: DepthItem) => (
-          <DepthRow
-            key={`bid-${bid.price}`}
-            item={bid}
-            type="bid"
-            maxTotal={maxTotal}
-            isChanged={changedPrices.has(bid.price)}
-          />
-        ))}
-      </div>
+          {/* 买盘 */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-0.5 px-4 pb-4">
+            {visibleBids.map((bid: DepthItem) => (
+              <DepthRow
+                key={`bid-${bid.price}`}
+                item={bid}
+                type="bid"
+                maxTotal={maxTotal}
+                isChanged={changedPrices.has(bid.price)}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -191,9 +208,9 @@ DepthRow.displayName = 'DepthRow';
  */
 const CurrentPrice = memo(({ price }: { price: number }) => {
   return (
-    <div className="my-2 py-2 px-3 bg-gray-800 rounded flex items-center justify-between">
+    <div className="py-2 px-3 bg-gray-800 rounded flex items-center justify-between">
       <span className="text-gray-400 text-sm">当前价格</span>
-      <span className="text-white text-lg font-bold">{price.toFixed(2)}</span>
+      <span className="text-white text-base font-bold">{price.toFixed(2)}</span>
     </div>
   );
 });

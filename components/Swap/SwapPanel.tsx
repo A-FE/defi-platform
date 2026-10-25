@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TOKENS, getTokenBySymbol } from '@/constants/tokens';
+import { EVM_TOKENS, getTokenBySymbol } from '@/constants/tokens';
 import { useWalletStore, useTransactionStore } from '@/stores';
 import { notify } from '@/stores/notification/useNotificationStore';
 
@@ -286,7 +286,7 @@ function TokenSelector({
   const [isOpen, setIsOpen] = useState(false);
   const tokenInfo = getTokenBySymbol(selectedToken);
 
-  const availableTokens = Object.keys(TOKENS).filter((t) => t !== excludeToken);
+  const availableTokens = Object.keys(EVM_TOKENS).filter((t) => t !== excludeToken);
 
   return (
     <div className="relative">

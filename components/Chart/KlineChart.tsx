@@ -2,9 +2,11 @@
 
 import { memo } from 'react';
 import { useKlineChart } from './hooks/useKlineChart';
+import { useKlineStore } from '@/stores';
 import ChartControls from './ChartControls';
 import { IndicatorLegend } from './IndicatorLegend';
 import { KlineInterval } from '@/types/market';
+import EmptyState from '@/components/EmptyState/EmptyState';
 
 interface KlineChartProps {
   symbol: string;
@@ -38,6 +40,11 @@ const KlineChartComponent = ({ symbol, defaultInterval = '1d' }: KlineChartProps
     legends,
   } = useKlineChart({ symbol, initialInterval: defaultInterval });
 
+  // 检查是否有数据
+  const bars = useKlineStore((state) => state.bars);
+  const hasData = bars.length > 0;
+  const showEmptyState = !isLoading && !hasData;
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 rounded-lg border border-gray-800 p-4">
       {/* 控制栏 */}
@@ -45,18 +52,29 @@ const KlineChartComponent = ({ symbol, defaultInterval = '1d' }: KlineChartProps
 
       {/* 图表容器：单个 chart，包含主副 pane */}
       <div className="flex-1 relative">
+        {/* ✅ 始终渲染图表容器，确保 useChartInit 能正常工作 */}
         <div ref={containerRef} className="absolute inset-0" />
 
         {/* 指标图例 */}
         <IndicatorLegend legends={legends} chartRef={chartRef} />
 
-        {/* 初始加载状态 */}
+        {/* 初始加载状态（优先级最高，z-index: 20） */}
         {isLoading && (
-          <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-20">
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-gray-400">加载中...</span>
             </div>
+          </div>
+        )}
+
+        {/* 空状态提示（覆盖在图表上方，z-index: 10） */}
+        {showEmptyState && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+            <EmptyState
+              title="暂无数据"
+              message="当前交易对没有可用的K线数据，请检查 Bitquery API 配置或选择其他交易对"
+            />
           </div>
         )}
 

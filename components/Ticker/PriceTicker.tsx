@@ -59,11 +59,11 @@ const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
     // 300ms 后恢复默认颜色
     const timer = setTimeout(() => setPriceDirection(null), 300);
     return () => clearTimeout(timer);
-  }, [latestBar?.close, isHovering]); // 只依赖 close 值和 hover 状态
+  }, [latestBar, isHovering]); // 依赖完整的 latestBar 对象和 hover 状态
 
   if (!displayBar) {
     return (
-      <div className="h-[72px] animate-pulse flex items-center">
+      <div className="animate-pulse flex items-center py-2">
         <div className="h-10 bg-gray-700 rounded w-32" />
       </div>
     );
@@ -71,7 +71,6 @@ const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
 
   // 显示数据（都来自 K 线）
   const price = displayBar.close;
-  const open = displayBar.open;
   const high = displayBar.high;
   const low = displayBar.low;
   const volume = displayBar.volume;
@@ -82,12 +81,12 @@ const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
   const isPositive = change >= 0;
 
   return (
-    <div className="h-[72px] flex flex-col justify-center gap-2">
+    <div className="flex flex-col justify-center gap-2 py-2">
       {/* 第一行：价格 + 涨跌幅 */}
-      <div className="flex items-baseline gap-4">
+      <div className="flex items-baseline gap-4 flex-wrap">
         {/* 当前价格 */}
         <div
-          className={`text-4xl font-bold transition-colors duration-300 ${
+          className={`text-3xl font-bold transition-colors duration-300 ${
             isHovering
               ? 'text-white' // hover 时固定白色
               : priceDirection === 'up'
@@ -102,7 +101,7 @@ const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
 
         {/* 涨跌幅 */}
         <div
-          className={`flex items-center gap-1 text-base font-medium ${
+          className={`flex items-center gap-1 text-sm font-medium ${
             isPositive ? 'text-green-400' : 'text-red-400'
           }`}
         >
@@ -111,14 +110,14 @@ const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
             {isPositive ? '+' : ''}
             {change.toFixed(2)}%
           </span>
-          <span className="text-sm opacity-75">
+          <span className="text-xs opacity-75">
             ({isPositive ? '+' : ''}${Math.abs(changeAmount).toFixed(2)})
           </span>
         </div>
       </div>
 
       {/* 第二行：统计数据 + 时间（hover 时） */}
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex items-center gap-4 text-xs flex-wrap">
         {/* 高点 */}
         <div className="text-gray-400">
           <span className="opacity-60">高：</span>

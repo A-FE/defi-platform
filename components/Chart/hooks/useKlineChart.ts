@@ -8,7 +8,6 @@ import { useChartInit } from './useChartInit';
 import { useTimeFormatUpdate } from './useTimeFormatUpdate';
 import { useKlineDataLoader } from './useKlineDataLoader';
 import { useInfiniteLoadHistory } from './useInfiniteLoadHistory';
-import { useIndicatorRenderer } from './useIndicatorRenderer';
 import { useIndicatorRendererV2 } from './useIndicatorRendererV2';
 import { useEnabledIndicators } from './useEnabledIndicators';
 import { useIndicatorLegend } from './useIndicatorLegend';

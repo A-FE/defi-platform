@@ -11,6 +11,27 @@ const nextConfig: NextConfig = {
         as: '*.css',
       },
     },
+    // Turbopack 模块解析配置
+    resolveAlias: {
+      '@x402/core/client': false,
+      '@x402/evm/exact/client': false,
+      '@x402/evm/upto/client': false,
+      '@x402/svm/exact/client': false,
+    },
+  },
+  // Webpack 配置（回退）
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        '@x402/core/client': false,
+        '@x402/evm/exact/client': false,
+        '@x402/evm/upto/client': false,
+        '@x402/svm/exact/client': false,
+      };
+    }
+    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    return config;
   },
 };
 

@@ -4,32 +4,39 @@ import { WalletState } from '@/types/store';
 /**
  * 钱包 Store
  * 职责：管理钱包连接状态
+ *
+ * 注意：这个 Store 主要用于存储钱包状态
+ * 实际的钱包连接通过 Wagmi/RainbowKit 处理
  */
 export const useWalletStore = create<WalletState>((set, get) => ({
   wallet: null,
   isConnecting: false,
 
   /**
+   * 设置钱包信息
+   * 由外部钱包连接组件调用
+   */
+  setWallet: (walletData) => {
+    set({
+      wallet: walletData ? {
+        address: walletData.address,
+        publicKey: walletData.publicKey || walletData.address,
+        connected: walletData.connected,
+        balance: walletData.balance || 0,
+      } : null,
+    });
+  },
+
+  /**
    * 连接钱包
+   * 实际连接逻辑由 RainbowKit 处理
+   * 这里只是一个占位符
    */
   connect: async () => {
     set({ isConnecting: true });
-
-    try {
-      // 这里会在后面集成真实的 Solana wallet adapter
-      // 暂时使用 Mock 数据
-      const mockWallet = {
-        address: 'Fy7w...x9Ks',
-        publicKey: 'Fy7wVhxxx9Ks',
-        connected: true,
-        balance: 10.5, // SOL
-      };
-
-      set({ wallet: mockWallet, isConnecting: false });
-    } catch (error) {
-      console.error('Connect wallet error:', error);
-      set({ isConnecting: false });
-    }
+    // 实际连接由 RainbowKit 的 ConnectButton 处理
+    // 这里不需要实现具体逻辑
+    set({ isConnecting: false });
   },
 
   /**
@@ -41,23 +48,19 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   /**
    * 更新余额
+   * 由外部调用传入真实余额
    */
-  updateBalance: async () => {
+  updateBalance: async (balance?: number) => {
     const { wallet } = get();
     if (!wallet) {return;}
 
-    try {
-      // 这里会查询真实余额
-      // 暂时 Mock
-      const newBalance = wallet.balance + Math.random() * 0.1;
+    if (balance !== undefined) {
       set({
         wallet: {
           ...wallet,
-          balance: newBalance,
+          balance,
         },
       });
-    } catch (error) {
-      console.error('Update balance error:', error);
     }
   },
 }));

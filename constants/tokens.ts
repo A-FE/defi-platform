@@ -1,43 +1,64 @@
-import { TokenInfo } from '@/types/solana';
+import { TokenInfo } from '@/types/evm';
 
 /**
- * 主流代币列表（Solana Mainnet）
+ * 主流 ERC20 代币（以太坊主网）
  */
-export const TOKENS: Record<string, TokenInfo> = {
-  SOL: {
-    mint: 'So11111111111111111111111111111111111111112',
-    symbol: 'SOL',
-    name: 'Solana',
-    decimals: 9,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+export const EVM_TOKENS: Record<string, TokenInfo> = {
+  ETH: {
+    address: '0x0000000000000000000000000000000000000000', // 原生代币
+    symbol: 'ETH',
+    name: 'Ethereum',
+    decimals: 18,
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
   },
-  USDC: {
-    mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-    symbol: 'USDC',
-    name: 'USD Coin',
-    decimals: 6,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+  WETH: {
+    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    symbol: 'WETH',
+    name: 'Wrapped Ether',
+    decimals: 18,
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
   },
   USDT: {
-    mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+    address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
     symbol: 'USDT',
     name: 'Tether USD',
     decimals: 6,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
   },
-  BTC: {
-    mint: '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E',
-    symbol: 'BTC',
-    name: 'Bitcoin (Portal)',
-    decimals: 8,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png',
+  USDC: {
+    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    symbol: 'USDC',
+    name: 'USD Coin',
+    decimals: 6,
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
   },
-  ETH: {
-    mint: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs',
-    symbol: 'ETH',
-    name: 'Ether (Portal)',
+  WBTC: {
+    address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
     decimals: 8,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png',
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
+  },
+  UNI: {
+    address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+    symbol: 'UNI',
+    name: 'Uniswap',
+    decimals: 18,
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+  },
+  LINK: {
+    address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+    symbol: 'LINK',
+    name: 'Chainlink',
+    decimals: 18,
+    chainId: 1,
+    logoURI: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
   },
 };
 
@@ -45,18 +66,20 @@ export const TOKENS: Record<string, TokenInfo> = {
  * 获取代币信息
  */
 export function getTokenBySymbol(symbol: string): TokenInfo | undefined {
-  return TOKENS[symbol.toUpperCase()];
+  return EVM_TOKENS[symbol.toUpperCase()];
 }
 
 /**
- * 获取代币信息（通过 Mint 地址）
+ * 获取代币信息（通过合约地址）
  */
-export function getTokenByMint(mint: string): TokenInfo | undefined {
-  return Object.values(TOKENS).find((token) => token.mint === mint);
+export function getTokenByAddress(address: string): TokenInfo | undefined {
+  return Object.values(EVM_TOKENS).find(
+    (token) => token.address.toLowerCase() === address.toLowerCase(),
+  );
 }
 
 /**
  * 默认交易代币对
  */
-export const DEFAULT_SWAP_FROM = 'SOL';
+export const DEFAULT_SWAP_FROM = 'ETH';
 export const DEFAULT_SWAP_TO = 'USDC';

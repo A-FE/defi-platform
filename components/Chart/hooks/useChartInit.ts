@@ -15,7 +15,12 @@ export function useChartInit() {
   const managerRef = useRef<IndicatorManager | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) {return;}
+    if (!containerRef.current) {
+      console.warn('[useChartInit] containerRef.current is null');
+      return;
+    }
+
+    console.info('[useChartInit] Starting chart initialization');
 
     try {
       // 创建图表
@@ -56,6 +61,13 @@ export function useChartInit() {
       }, 0);
 
       seriesRef.current = candlestickSeries;
+
+      console.info('[useChartInit] ✅ Chart and series initialized successfully', {
+        chartExists: Boolean(chart),
+        seriesExists: Boolean(candlestickSeries),
+        containerWidth: containerRef.current?.clientWidth,
+        containerHeight: containerRef.current?.clientHeight,
+      });
 
       // 初始化指标管理器
       managerRef.current = new IndicatorManager(chart);

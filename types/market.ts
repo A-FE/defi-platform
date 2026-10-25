@@ -6,6 +6,9 @@ export interface MarketSymbol {
   name: string;
   baseAsset: string;
   quoteAsset: string;
+  icon?: string;           // 币种图标 URL
+  dex?: string;            // DEX 名称 (Uniswap V3, SushiSwap 等)
+  chainId?: number;        // 链 ID (1=Ethereum, 137=Polygon)
 }
 
 /**
@@ -83,7 +86,7 @@ export interface WSMessage {
   type: WSMessageType;
   symbol?: string;
   interval?: KlineInterval;
-  data?: any;
+  data?: unknown;
   bids?: [number, number][];    // [价格, 数量]
   asks?: [number, number][];
   sequence?: number;

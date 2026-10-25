@@ -1,4 +1,4 @@
-import { KlineInterval, KlineBar, DepthItem, TickerData, AssetData } from './market';
+import { KlineInterval, KlineBar, DepthItem, TickerData, AssetData, Position } from './market';
 import { WalletInfo } from './solana';
 
 /**
@@ -52,8 +52,8 @@ export interface DepthState {
   // Actions
   subscribe: (symbol: string) => () => void;
   unsubscribe: (symbol: string) => void;
-  handleSnapshot: (data: any) => void;
-  handleUpdate: (data: any) => void;
+  handleSnapshot: (data: unknown) => void;
+  handleUpdate: (data: unknown) => void;
 }
 
 /**
@@ -77,9 +77,9 @@ export interface AssetState {
   isCalculating: boolean;
 
   // Actions
-  loadAssets: () => Promise<void>;
-  calculatePnL: () => void;
-  calculatePnLDebounced: () => void;
+  loadAssets: (walletAddress?: string, positions?: Position[]) => Promise<void>;
+  calculatePnL: (priceMap?: Record<string, number>) => void;
+  calculatePnLDebounced: (priceMap?: Record<string, number>) => void;
 }
 
 /**
@@ -90,7 +90,8 @@ export interface WalletState {
   isConnecting: boolean;
 
   // Actions
+  setWallet: (walletData: WalletInfo | null) => void;
   connect: () => Promise<void>;
   disconnect: () => void;
-  updateBalance: () => Promise<void>;
+  updateBalance: (balance?: number) => Promise<void>;
 }

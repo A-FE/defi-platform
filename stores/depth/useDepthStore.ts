@@ -6,11 +6,13 @@ import { DepthState } from '@/types/store';
 import { DepthItem } from '@/types/market';
 import { wsCenter } from '@/services/websocket';
 import { depthMockService } from '@/services/mock';
+import { bitqueryDepthService } from '@/services/bitquery';
 import { DEPTH_LEVELS } from '@/constants/api';
 
 /**
- * 订单簿 Store
+ * 订单簿 Store V2 - Bitquery 集成版本
  * 职责：管理订单簿深度数据
+ * 数据源：优先使用 Bitquery，降级到 Mock
  */
 export const useDepthStore = create<DepthState>((set, get) => {
   // ✅ 性能优化：保存定时器 ID，支持清理
@@ -25,14 +27,98 @@ export const useDepthStore = create<DepthState>((set, get) => {
     changedPrices: new Map(),
 
     /**
-     * 订阅订单簿深度
+     * 订阅订单簿深度（支持 Bitquery 和 Mock 模式）
      */
     subscribe: (symbol: string) => {
-      // 1. 首次获取快照
-      const snapshot = depthMockService.generateSnapshot(symbol, DEPTH_LEVELS);
-      get().handleSnapshot(snapshot);
+      // 检查是否启用 Bitquery（支持客户端和服务端环境变量）
+      const apiKey = process.env.NEXT_PUBLIC_BITQUERY_API_KEY || process.env.BITQUERY_API_KEY;
+      const useBitquery = process.env.NEXT_PUBLIC_USE_BITQUERY === 'true' && Boolean(apiKey);
 
-      // 2. 订阅增量更新
+      console.info('[DepthStore] Subscribe called:', {
+        symbol,
+        useBitquery,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 🎭 Mock 模式
+      if (!useBitquery) {
+        console.info('[Mock Mode] Depth subscribe:', symbol);
+
+        // ✅ 切换币种时先清空旧数据
+        set({
+          bids: [],
+          asks: [],
+          sequence: 0,
+          changedPrices: new Map(),
+        });
+
+        let count = 0;
+
+        const generateDepth = () => {
+          count++;
+          console.info(`[DepthStore] Generating snapshot #${count} for ${symbol}`);
+          const depthData = depthMockService.generateSnapshot(symbol, 20);
+          console.info('[DepthStore] Generated data:', {
+            symbol,
+            bidsCount: depthData.bids.length,
+            asksCount: depthData.asks.length,
+            firstBidPrice: depthData.bids[0]?.price,
+            firstAskPrice: depthData.asks[0]?.price,
+          });
+          get().handleSnapshot(depthData);
+        };
+
+        // 立即生成一次
+        generateDepth();
+
+        // 每 2 秒更新一次
+        const intervalId = setInterval(generateDepth, 2000);
+
+        // 清理函数
+        return () => {
+          console.info(`[DepthStore] Cleanup for ${symbol}`);
+          clearInterval(intervalId);
+        };
+      }
+
+      let retryCount = 0;
+      const MAX_RETRIES = 3;
+
+      // 🚀 Bitquery 模式：定期获取深度数据
+      console.info('[Bitquery Mode] Depth subscribe:', symbol);
+
+      const fetchDepth = async () => {
+        try {
+          const depthData = await bitqueryDepthService.fetchDepthData(symbol, 100);
+          if (depthData) {
+            get().handleSnapshot(depthData);
+            retryCount = 0; // 重置重试计数
+          } else {
+            console.warn('[Depth] No data available for', symbol);
+          }
+        } catch (error: any) {
+          // 处理 429 限流错误
+          if (error.message?.includes('429')) {
+            retryCount++;
+            console.warn(`[Depth] Rate limited (${retryCount}/${MAX_RETRIES}), will retry later`);
+
+            if (retryCount >= MAX_RETRIES) {
+              console.error('[Depth] Max retries reached, stopping updates');
+              clearInterval(intervalId);
+            }
+          } else {
+            console.error('[Depth] Fetch error:', error);
+          }
+        }
+      };
+
+      // 立即获取一次
+      fetchDepth();
+
+      // 每 30 秒更新一次（降低频率避免 API 限流）
+      const intervalId = setInterval(fetchDepth, 30000);
+
+      // 订阅 WebSocket（如果有）
       const unsubscribeSnapshot = wsCenter.subscribe('depth_snapshot', (message) => {
         if (message.symbol === symbol) {
           get().handleSnapshot(message);
@@ -45,18 +131,11 @@ export const useDepthStore = create<DepthState>((set, get) => {
         }
       });
 
-      // 开发阶段：使用 Mock 数据模拟实时更新
-      // ✅ 性能优化：降低更新频率 100ms → 300ms，减少 CPU 负载
-      const mockInterval = setInterval(() => {
-        const update = depthMockService.generateUpdate(symbol);
-        get().handleUpdate(update);
-      }, 300); // 每 300ms 更新一次（从 100ms 优化而来）
-
       // 清理函数
       return () => {
         unsubscribeSnapshot();
         unsubscribeUpdate();
-        clearInterval(mockInterval);
+        clearInterval(intervalId);
       };
     },
 

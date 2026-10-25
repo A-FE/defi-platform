@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { KlineState } from '@/types/store';
-import { KlineInterval, KlineBar } from '@/types/market';
-import { klineSessionManager, TimeAlignmentUtil } from '@/services/mock/kline';
+import { KlineInterval } from '@/types/market';
+import { klineSessionManager } from '@/services/mock/kline';
+import { bitqueryKlineService } from '@/services/bitquery';
 
 /**
  * 辅助函数：获取 K 线周期对应的秒数
@@ -22,9 +23,9 @@ function getIntervalSeconds(interval: KlineInterval): number {
 }
 
 /**
- * K线 Store V2 - 前端计算版本
+ * K线 Store V3 - Bitquery 集成版本
  * 职责：管理原始 K线数据、缓存、订阅
- * 改变：不再处理指标，指标计算由 IndicatorManager 负责
+ * 数据源：优先使用 Bitquery，降级到 Mock
  */
 export const useKlineStore = create<KlineState>()(
   persist(
@@ -35,7 +36,7 @@ export const useKlineStore = create<KlineState>()(
       isLoading: false,
 
       /**
-       * ✅ 简化：只获取原始 K线数据
+       * ✅ V3：支持 Bitquery + Mock 降级
        * @param symbol 交易对
        * @param interval K线周期
        * @param from 开始时间（UTC 秒）
@@ -45,133 +46,78 @@ export const useKlineStore = create<KlineState>()(
         set({ isLoading: true });
 
         try {
-          // 🔧 开发模式：使用 mock 数据
-          const useMock = process.env.NODE_ENV === 'development' ||
-                          !process.env.NEXT_PUBLIC_KLINE_API_ENABLED;
+          // 检查是否启用 Bitquery（支持客户端和服务端环境变量）
+          const apiKey = process.env.NEXT_PUBLIC_BITQUERY_API_KEY || process.env.BITQUERY_API_KEY;
+          const useBitquery = process.env.NEXT_PUBLIC_USE_BITQUERY === 'true' && Boolean(apiKey);
 
-          if (useMock) {
-            console.info('[DEV MODE] fetchKlines:', {
+          console.info('[KlineStore] Config:', {
+            useBitquery,
+            hasApiKey: Boolean(apiKey),
+            useFlag: process.env.NEXT_PUBLIC_USE_BITQUERY,
+            apiKeyPrefix: `${apiKey?.substring(0, 15)  }...`,
+          });
+
+          // 🎭 Mock 模式
+          if (!useBitquery) {
+            console.info('[Mock Mode] fetchKlines:', {
               symbol,
               interval,
-              from: new Date(from * 1000).toISOString(),
-              to: new Date(to * 1000).toISOString(),
+              limit: Math.ceil((to - from) / getIntervalSeconds(interval)),
             });
 
-            // 获取或创建 Session
-            const session = klineSessionManager.getOrCreateSession(symbol, interval);
+            // 使用 Mock 服务生成 K线数据
             const limit = Math.ceil((to - from) / getIntervalSeconds(interval));
-
-            // ⚠️ 关键修复：如果 Session 已有 lastBar，使用它的价格作为基准
-            // 这样切换周期时价格能保持连续性
-            const existingLastBar = session.getLastBar();
-            if (existingLastBar) {
-              console.info('[fetchKlines] 复用现有 Session 价格:', existingLastBar.close);
-            }
-
-            // 使用 before 参数生成指定时间范围之前的历史数据
+            const session = klineSessionManager.getOrCreateSession(symbol, interval);
             const bars = session.generateHistory(limit, to);
 
-            // ✅ 直接返回原始 K线，不计算指标
+            console.info('[Mock] Generated', bars.length, 'bars');
             get().saveToCache(symbol, interval, bars);
             set({ bars, interval, isLoading: false });
             return bars;
           }
 
-          // 🚀 生产模式：调用真实后端接口
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/v1/klines?` +
-            `symbol=${symbol}&interval=${interval}&from=${from}&to=${to}`,
-          );
+          console.info('[Bitquery Mode] fetchKlines:', {
+            symbol,
+            interval,
+            from: new Date(from * 1000).toISOString(),
+            to: new Date(to * 1000).toISOString(),
+          });
 
-          if (!response.ok) {
-            throw new Error(`Failed to fetch klines: ${response.statusText}`);
+          // 🚀 从 Bitquery 获取数据
+          const bars = await bitqueryKlineService.fetchKlineData(symbol, interval, from, to);
+
+          if (bars && bars.length > 0) {
+            console.info('[Bitquery] Fetched', bars.length, 'bars');
+            get().saveToCache(symbol, interval, bars);
+            set({ bars, interval, isLoading: false });
+            return bars;
           }
 
-          const data = await response.json();
-          const bars: KlineBar[] = data.bars || data;
-
-          get().saveToCache(symbol, interval, bars);
-          set({ bars, interval, isLoading: false });
-          return bars;
-
+          // 如果 Bitquery 返回空数据
+          console.warn('[Bitquery] No data available for', symbol);
+          set({ bars: [], interval, isLoading: false });
+          return [];
         } catch (error) {
-          console.error('[fetchKlines] 获取数据失败:', error);
-          set({ isLoading: false });
+          console.error('[KlineStore] Fetch error:', error);
+          set({ bars: [], interval, isLoading: false });
           return [];
         }
       },
 
       /**
-       * ✅ 简化：订阅只推送原始 K线，不计算指标
+       * 订阅实时 K线更新（仅 Bitquery 模式）
        */
-      subscribeBars: (symbol, interval, lastBar, callback) => {
-        // 获取该 symbol+interval 的会话
-        const session = klineSessionManager.getOrCreateSession(symbol, interval);
-
-        // ⚠️ 关键修复：初始化 Session 的 lastBar，确保 WebSocket 基于正确的价格继续生成
-        // 这样第一次推送就能从历史数据的最后价格平滑过渡
-        session.setLastBar(lastBar);
-
-        console.info('[subscribeBars] 初始化 Session lastBar:', {
-          symbol,
-          interval,
-          lastBarClose: lastBar.close,
-        });
-
-        // 根据K线周期动态调整更新频率
-        const updateIntervalMap: Record<KlineInterval, number> = {
-          'timesharing': 1000,  // 分时图：1秒
-          '1m': 1000,   // 1秒
-          '5m': 1000,   // 1秒
-          '15m': 2000,  // 2秒
-          '1h': 2000,   // 2秒
-          '4h': 5000,   // 5秒
-          '1d': 5000,   // 5秒
-          '1w': 5000,   // 5秒
-        };
-        const updateInterval = updateIntervalMap[interval] || 2000;
-
-        // 使用统一的时间对齐工具计算当前 bar 的时间
-        let lastBarTime = lastBar.time;
-
-        // 开发阶段：使用会话生成实时更新
-        const mockInterval = setInterval(() => {
-          try {
-            // 每次都重新计算当前对齐的时间戳，确保准确性
-            const currentBarTime = TimeAlignmentUtil.getCurrentAlignedTime(interval);
-
-            // 生成实时更新
-            const bar = session.generateRealtimeUpdate(currentBarTime);
-
-            // 只有时间戳有效时才回调
-            if (TimeAlignmentUtil.validateBarTime(bar.time, lastBarTime)) {
-              lastBarTime = bar.time;
-
-              // ✅ 直接回调原始 K线
-              callback(bar);
-
-              // 更新 Store 中的最新 bar
-              get().updateBar(symbol, bar);
-            }
-          } catch (error) {
-            console.error('[subscribeBars] 生成实时更新失败:', error);
-          }
-        }, updateInterval);
-
-        // 返回取消订阅函数
-        return () => {
-          clearInterval(mockInterval);
-          // 销毁该会话，清理状态
-          klineSessionManager.destroySession(symbol, interval);
-        };
+      subscribeBars: (_symbol, _interval, _lastBar, _callback) => {
+        console.warn('[subscribeBars] Real-time updates not available without WebSocket');
+        // 返回空的取消订阅函数
+        return () => {};
       },
 
       /**
        * 取消订阅
        */
       unsubscribeBars: (symbol, interval) => {
-        // 销毁对应的会话，清理状态
-        klineSessionManager.destroySession(symbol, interval);
+        console.info('[unsubscribeBars] Cleanup for', symbol, interval);
       },
 
       /**

@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAssetStore, useWalletStore } from '@/stores';
+import { getTokenBalances, convertBalancesToPositions } from '@/services/wallet/tokenBalance';
+import { getTokenPrices } from '@/services/wallet/tokenPrice';
 
 /**
  * 资产管理面板
@@ -9,28 +11,43 @@ import { useAssetStore, useWalletStore } from '@/stores';
  */
 export function AssetPanel() {
   const { wallet } = useWalletStore();
-  const { assets, isCalculating, loadAssets, calculatePnLDebounced } = useAssetStore();
+  const { assets, isCalculating, loadAssets } = useAssetStore();
+  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
 
-  // 加载资产
+  // 当钱包连接时，查询链上代币余额
   useEffect(() => {
-    if (wallet?.connected) {
-      loadAssets();
-    }
-  }, [wallet?.connected, loadAssets]);
+    if (wallet?.connected && wallet.address) {
+      const fetchBalances = async () => {
+        setIsLoadingBalances(true);
+        try {
+          // 1. 查询代币余额
+          const balances = await getTokenBalances(wallet.address);
 
-  // 实时计算盈亏（防抖）
-  useEffect(() => {
-    if (assets && wallet?.connected) {
-      calculatePnLDebounced();
+          // 2. 获取价格
+          const prices = getTokenPrices();
+
+          // 3. 转换为持仓数据
+          const positions = convertBalancesToPositions(balances, prices);
+
+          // 4. 加载到 Store
+          await loadAssets(wallet.address, positions);
+        } catch (error) {
+          console.error('Failed to load asset data:', error);
+        } finally {
+          setIsLoadingBalances(false);
+        }
+      };
+
+      fetchBalances();
     }
-  }, [assets, wallet?.connected, calculatePnLDebounced]);
+  }, [wallet?.connected, wallet?.address, loadAssets]);
 
   if (!wallet?.connected) {
     return (
-      <div className="bg-gray-900 rounded-lg border border-gray-800 p-8">
-        <div className="text-center text-gray-400">
+      <div className="bg-gray-900 rounded-lg border border-gray-800 p-12">
+        <div className="max-w-md mx-auto text-center">
           <svg
-            className="w-16 h-16 mx-auto mb-4 text-gray-600"
+            className="w-20 h-20 mx-auto mb-6 text-gray-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -42,7 +59,24 @@ export function AssetPanel() {
               d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
             />
           </svg>
-          <p className="text-lg">请先连接钱包查看资产</p>
+          <h3 className="text-xl font-bold text-white mb-2">连接钱包查看资产</h3>
+          <p className="text-gray-400 mb-6">
+            连接您的钱包以查看链上代币余额和持仓数据
+          </p>
+          <p className="text-sm text-gray-500">
+            点击右上角的 "Connect Wallet" 按钮连接钱包
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingBalances || isCalculating) {
+    return (
+      <div className="bg-gray-900 rounded-lg border border-gray-800 p-8">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">正在加载资产数据...</p>
         </div>
       </div>
     );
