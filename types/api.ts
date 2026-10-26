@@ -30,25 +30,23 @@ export interface DepthParams {
  * Swap 报价参数
  */
 export interface SwapQuoteParams {
-  inputMint: string;
-  outputMint: string;
+  inputToken: string;
+  outputToken: string;
   amount: number;
-  slippageBps: number;  // 滑点（基点，1% = 100 bps）
+  slippage: number;  // 滑点百分比（1 = 1%）
 }
 
 /**
- * Jupiter 报价响应
+ * DEX 报价响应
  */
-export interface JupiterQuote {
-  inputMint: string;
-  outputMint: string;
-  inAmount: string;
-  outAmount: string;
-  otherAmountThreshold: string;
-  swapMode: string;
-  slippageBps: number;
-  priceImpactPct: number;
-  routePlan: any[];
+export interface SwapQuote {
+  inputToken: string;
+  outputToken: string;
+  inputAmount: string;
+  outputAmount: string;
+  minimumReceived: string;
+  priceImpact: number;
+  price: number;
 }
 
 /**
