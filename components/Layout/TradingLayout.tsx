@@ -18,7 +18,6 @@ export function TradingLayout({ children }: TradingLayoutProps) {
     { href: '/market', label: '行情', icon: '📊' },
     { href: '/market/swap', label: 'Swap', icon: '🔄' },
     { href: '/market/portfolio', label: '资产', icon: '💼' },
-    { href: '/market/history', label: '历史', icon: '📜' },
   ];
 
   return (

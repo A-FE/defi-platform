@@ -1,13 +1,13 @@
-# DeFi 行情平台 (Solana)
+# DeFi 行情平台 (EVM)
 
-> 基于 Next.js 14 + React + TypeScript + Solana 的去中心化行情展示平台前端
+> 基于 Next.js 14 + React + TypeScript + EVM 的去中心化行情展示平台前端
 
 ## 📋 项目概览
 
 这是一个从零构建的生产级 DeFi 交易平台前端项目，旨在掌握：
 
 - **DeFi 核心概念**：DEX、AMM、永续合约、流动性池
-- **Solana 生态**：钱包集成、交易签名、链上数据读取
+- **以太坊生态**：钱包集成、Web3 交互、链上数据读取
 - **实时数据处理**：WebSocket 高频数据流、订单簿渲染优化
 - **行情 UI 架构**：K线图、深度图、多品种切换等复杂组件
 - **性能优化**：Core Web Vitals（LCP < 2.5s, INP < 200ms, CLS < 0.1）
@@ -22,15 +22,15 @@
 | **样式** | Tailwind CSS | 快速响应式开发 |
 | **K线图** | TradingView Lightweight Charts | 专业金融图表 |
 | **实时数据** | 原生 WebSocket API | 灵活控制 |
-| **钱包集成** | @solana/wallet-adapter | 多钱包支持 |
-| **Swap 路由** | Jupiter API | Solana 最大聚合器 |
+| **链上数据** | Bitquery API | EVM 链上数据查询 |
+| **Swap 路由** | Uniswap SDK | DEX 聚合器 |
 | **部署** | Vercel | 全球 CDN |
 
 ## 🎯 核心功能
 
-- ✅ **多品种行情**：支持 BTC、ETH、SOL、BNB、ADA、DOGE 等多个品种切换
+- ✅ **多品种行情**：支持 BTC、ETH、WETH、USDT、USDC 等多个品种切换
 - ✅ **实时行情**：K线图、订单簿深度图、Ticker 价格面板
-- ✅ **钱包管理**：Phantom、Solflare 连接
+- ✅ **钱包管理**：MetaMask、WalletConnect 连接
 - ✅ **资产管理**：账户余额、持仓列表、浮动盈亏计算
 
 ## 📁 项目结构
@@ -48,10 +48,9 @@ defi-platform/
 │   └── common/            # 通用组件
 ├── services/              # 服务层
 │   ├── websocket/         # WebSocket 订阅中心
-│   ├── http/              # HTTP API
-│   ├── solana/            # Solana 服务
-│   ├── jupiter/           # Jupiter 服务
-│   ├── pyth/              # Pyth 服务
+│   ├── bitquery/          # Bitquery API 服务
+│   ├── price/             # 价格服务
+│   ├── swap/              # Swap 服务
 │   └── mock/              # Mock 数据
 ├── stores/                # Zustand 状态管理
 │   ├── kline/             # K线状态
@@ -91,14 +90,19 @@ cp .env.example .env.local
 编辑 `.env.local`：
 
 ```env
-# Solana RPC URL
-NEXT_PUBLIC_SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+# EVM RPC URLs
+NEXT_PUBLIC_ETHEREUM_RPC_URL=https://eth.llamarpc.com
+NEXT_PUBLIC_POLYGON_RPC_URL=https://polygon.llamarpc.com
+
+# Bitquery API (获取: https://bitquery.io/)
+BITQUERY_API_KEY=your_bitquery_api_key_here
+NEXT_PUBLIC_USE_BITQUERY=false
 
 # WebSocket 地址（开发阶段用 Mock 服务）
 NEXT_PUBLIC_WS_URL=ws://localhost:8080
 
-# 网络环境（mainnet-beta | devnet）
-NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta
+# 网络环境（mainnet | testnet）
+NEXT_PUBLIC_NETWORK=mainnet
 ```
 
 ### 启动开发服务器

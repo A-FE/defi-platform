@@ -27,7 +27,7 @@ export default function Home() {
           {/* 标题 */}
           <div className="mb-8">
             <span className="inline-block px-4 py-2 bg-purple-600/20 text-purple-300 text-sm rounded-full mb-4 border border-purple-500/30">
-              基于 Solana 的去中心化行情平台
+              基于以太坊的去中心化行情平台
             </span>
             <h1 className="text-6xl font-bold text-white mb-6 leading-tight">
               新一代 DeFi
@@ -39,7 +39,7 @@ export default function Home() {
             <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
               专业级 K线图表、实时订单簿深度、闪电般的交易速度。
               <br />
-              基于 Jupiter 聚合器，为您找到最优交易路径。
+              基于 Uniswap 等 DEX，为您找到最优交易路径。
             </p>
           </div>
 
@@ -105,7 +105,7 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-bold text-white mb-2">最优路径</h3>
               <p className="text-gray-400 text-sm">
-                集成 Jupiter 聚合器，自动为您找到最优交易路径和最佳价格
+                集成 Uniswap 等 DEX，自动为您找到最优交易路径和最佳价格
               </p>
             </div>
 
@@ -128,7 +128,7 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-bold text-white mb-2">安全快速</h3>
               <p className="text-gray-400 text-sm">
-                基于 Solana 高性能区块链，交易确认快速，Gas 费用低廉
+                基于以太坊生态，安全可靠，去中心化交易保障资产安全
               </p>
             </div>
           </div>
@@ -144,13 +144,13 @@ export default function Home() {
                 TypeScript
               </div>
               <div className="px-4 py-2 bg-white/10 rounded-lg text-gray-300 text-sm font-medium">
-                Solana Web3.js
+                Ethereum
               </div>
               <div className="px-4 py-2 bg-white/10 rounded-lg text-gray-300 text-sm font-medium">
                 TradingView Charts
               </div>
               <div className="px-4 py-2 bg-white/10 rounded-lg text-gray-300 text-sm font-medium">
-                Jupiter API
+                Bitquery API
               </div>
               <div className="px-4 py-2 bg-white/10 rounded-lg text-gray-300 text-sm font-medium">
                 Zustand
@@ -159,28 +159,7 @@ export default function Home() {
           </div>
         </div>
       </main>
-
-      {/* 页脚 */}
-      <footer className="border-t border-white/10 mt-20">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-between text-sm text-gray-400">
-            <div>
-              <p>© 2026 DeFi Trading Platform. All rights reserved.</p>
-            </div>
-            <div className="flex items-center gap-6">
-              <a href="#" className="hover:text-white transition-colors">
-                文档
-              </a>
-              <a href="#" className="hover:text-white transition-colors">
-                GitHub
-              </a>
-              <a href="#" className="hover:text-white transition-colors">
-                Twitter
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+     
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { EVM_TOKENS, getTokenBySymbol, DEFAULT_SWAP_FROM, DEFAULT_SWAP_TO } from '@/constants/tokens';
-import { useWalletStore, useTransactionStore } from '@/stores';
+import { useWalletStore } from '@/stores';
 import { notify } from '@/stores/notification/useNotificationStore';
 import { swapService, SwapQuote } from '@/services/swap';
 
@@ -273,15 +273,10 @@ export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT
       {/* Swap 按钮 */}
       <button
         onClick={handleSwap}
-        disabled={!wallet?.connected || !fromAmount || isSwapping}
+        disabled={!wallet?.connected || !fromAmount}
         className="w-full mt-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-purple-500/50 hover:scale-[1.02] active:scale-[0.98]"
       >
-        {isSwapping ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            交易中...
-          </span>
-        ) : !wallet?.connected ? (
+        {!wallet?.connected ? (
           <span className="flex items-center justify-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
