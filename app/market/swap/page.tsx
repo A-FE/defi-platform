@@ -21,7 +21,7 @@ export default function SwapPage() {
           <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
             代币兑换
           </h1>
-          <p className="text-gray-400 text-lg">通过 Jupiter 聚合器获取最优兑换路径</p>
+          <p className="text-gray-400 text-lg">通过 Uniswap 等 DEX 获取最优兑换路径</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -38,7 +38,7 @@ export default function SwapPage() {
                 <h3 className="text-xl font-bold text-white">超快速度</h3>
               </div>
               <p className="text-gray-300 leading-relaxed">
-                基于 Solana 高性能区块链，交易确认仅需数秒，享受极致的交易体验
+                基于以太坊生态的去中心化交易，安全可靠，享受极致的 DeFi 体验
               </p>
             </div>
 
@@ -52,7 +52,7 @@ export default function SwapPage() {
                 <h3 className="text-xl font-bold text-white">最优价格</h3>
               </div>
               <p className="text-gray-300 leading-relaxed">
-                Jupiter 智能聚合多个 DEX，实时对比价格，为您找到最优惠的兑换路径
+                智能聚合 Uniswap、SushiSwap 等多个 DEX，实时对比价格，为您找到最优惠的兑换路径
               </p>
             </div>
 
@@ -91,7 +91,7 @@ export default function SwapPage() {
           {/* 中间：Swap 表单 */}
           <div className="lg:col-span-5">
             <Suspense fallback={<SwapSkeleton />}>
-              <SwapPanel defaultFrom="SOL" defaultTo="USDC" />
+              <SwapPanel defaultFrom="ETH" defaultTo="USDC" />
             </Suspense>
           </div>
 
@@ -132,9 +132,9 @@ export default function SwapPage() {
               </h3>
               <div className="space-y-3">
                 {[
-                  { from: 'SOL', to: 'USDC', volume: '$45.2M' },
-                  { from: 'SOL', to: 'USDT', volume: '$28.7M' },
-                  { from: 'RAY', to: 'USDC', volume: '$15.3M' },
+                  { from: 'ETH', to: 'USDC', volume: '$45.2M' },
+                  { from: 'WETH', to: 'USDT', volume: '$28.7M' },
+                  { from: 'WBTC', to: 'USDC', volume: '$15.3M' },
                 ].map((pair, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors">
                     <div className="flex items-center gap-2">
@@ -164,8 +164,8 @@ export default function SwapPage() {
                   <span className="text-white font-medium">0.25%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">网络费用</span>
-                  <span className="text-white font-medium">~0.00005 SOL</span>
+                  <span className="text-gray-400">Gas 费用</span>
+                  <span className="text-white font-medium">动态调整</span>
                 </div>
                 <div className="pt-3 border-t border-gray-800 text-xs text-gray-500">
                   * 实际费用可能因网络拥堵程度略有差异

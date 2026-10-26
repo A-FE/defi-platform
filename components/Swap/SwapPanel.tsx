@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { EVM_TOKENS, getTokenBySymbol } from '@/constants/tokens';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { EVM_TOKENS, getTokenBySymbol, DEFAULT_SWAP_FROM, DEFAULT_SWAP_TO } from '@/constants/tokens';
 import { useWalletStore, useTransactionStore } from '@/stores';
 import { notify } from '@/stores/notification/useNotificationStore';
+import { swapService, SwapQuote } from '@/services/swap';
 
 interface SwapPanelProps {
   defaultFrom?: string;
@@ -11,37 +12,87 @@ interface SwapPanelProps {
 }
 
 /**
- * Swap 交易面板
+ * Swap 交易面板 - EVM 版本
  */
-export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanelProps) {
+export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT_SWAP_TO }: SwapPanelProps) {
   const { wallet } = useWalletStore();
-  const { addTransaction } = useTransactionStore();
   const [fromToken, setFromToken] = useState(defaultFrom);
   const [toToken, setToToken] = useState(defaultTo);
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
   const [slippage, setSlippage] = useState(0.5);
-  const [isSwapping, setIsSwapping] = useState(false);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-
-  // 模拟汇率计算
-  const calculateToAmount = (amount: string) => {
-    if (!amount || isNaN(parseFloat(amount))) {
+  // 获取实时报价
+  const fetchQuote = useCallback(async (amount: string) => {
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       setToAmount('');
+      setQuote(null);
       return;
     }
 
-    // Mock 汇率：1 SOL = 100 USDC
-    const mockRate = fromToken === 'SOL' && toToken === 'USDC' ? 100 : 0.01;
-    const result = parseFloat(amount) * mockRate;
-    setToAmount(result.toFixed(6));
-  };
+    setIsLoadingQuote(true);
+    try {
+      const quoteData = await swapService.getQuote(
+        fromToken,
+        toToken,
+        parseFloat(amount),
+        slippage,
+      );
+
+      if (quoteData) {
+        setToAmount(quoteData.toAmount.toFixed(6));
+        setQuote(quoteData);
+      } else {
+        setToAmount('');
+        setQuote(null);
+        notify.warning('无法获取报价', '请稍后重试或更换代币对');
+      }
+    } catch (error) {
+      console.error('Failed to fetch quote:', error);
+      setToAmount('');
+      setQuote(null);
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  }, [fromToken, toToken, slippage]);
 
   // 处理输入变化
   const handleFromAmountChange = (value: string) => {
     setFromAmount(value);
-    calculateToAmount(value);
+
+    // 清除之前的定时器
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // 使用 debounce 避免频繁请求
+    debounceTimerRef.current = setTimeout(() => {
+      fetchQuote(value);
+    }, 500);
   };
+
+  // 代币对或滑点改变时重新获取报价
+  useEffect(() => {
+    if (fromAmount) {
+      // 使用定时器避免同步调用 setState
+      const timer = setTimeout(() => {
+        fetchQuote(fromAmount);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [fromToken, toToken, slippage, fetchQuote, fromAmount]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // 交换代币
   const handleSwapTokens = () => {
@@ -49,6 +100,10 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
     setToToken(fromToken);
     setFromAmount(toAmount);
     setToAmount(fromAmount);
+    // 交换后重新获取报价
+    if (toAmount) {
+      fetchQuote(toAmount);
+    }
   };
 
   // 执行 Swap
@@ -63,41 +118,16 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
       return;
     }
 
-    setIsSwapping(true);
-
-    try {
-      // 记录交易到历史
-      addTransaction({
-        type: 'swap',
-        status: 'pending',
-        fromToken,
-        toToken,
-        fromAmount: parseFloat(fromAmount),
-        toAmount: parseFloat(toAmount),
-        signature: `mock_${Date.now()}`,
-      });
-
-      // 显示交易开始通知
-      notify.info('交易已提交', '正在处理您的 Swap 交易...');
-
-      // 模拟交易延迟
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // 显示成功通知
-      notify.success(
-        '交易成功！',
-        `${fromAmount} ${fromToken} → ${toAmount} ${toToken}`,
-      );
-
-      // 清空输入
-      setFromAmount('');
-      setToAmount('');
-    } catch (error) {
-      console.error('Swap error:', error);
-      notify.error('交易失败', '请重试或检查网络连接');
-    } finally {
-      setIsSwapping(false);
+    if (!quote) {
+      notify.warning('无法执行交易', '请等待报价加载完成');
+      return;
     }
+
+    // 提示用户功能未实现
+    notify.warning(
+      '功能开发中',
+      '真实的链上交易功能正在开发中，需要集成 Uniswap/1inch 等 DEX 智能合约',
+    );
   };
 
   return (
@@ -115,7 +145,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
 
       {/* From 输入框 */}
       <div className="space-y-4">
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 hover:border-purple-500/30 transition-all duration-300">
+        <div className="relative z-30 bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 hover:border-purple-500/30 transition-all duration-300">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-400">支付</span>
             {wallet?.connected && (
@@ -147,10 +177,10 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
         </div>
 
         {/* 交换按钮 */}
-        <div className="flex justify-center -my-2 relative z-10">
+        <div className="flex justify-center relative z-10">
           <button
             onClick={handleSwapTokens}
-            className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-full border-4 border-gray-800 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg hover:shadow-purple-500/50"
+            className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-full border-gray-800 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg hover:shadow-purple-500/50"
           >
             <svg
               className="w-6 h-6 text-white"
@@ -169,7 +199,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
         </div>
 
         {/* To 输入框 */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 hover:border-green-500/30 transition-all duration-300">
+        <div className="relative z-20 bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 hover:border-green-500/30 transition-all duration-300">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-400">接收</span>
           </div>
@@ -194,7 +224,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
       </div>
 
       {/* 交易详情 */}
-      {fromAmount && toAmount && (
+      {fromAmount && toAmount && quote && (
         <div className="mt-6 p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/30 space-y-3 text-sm">
           <div className="flex justify-between items-center text-gray-400">
             <span className="flex items-center gap-2">
@@ -204,8 +234,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
               汇率
             </span>
             <span className="text-white font-medium">
-              1 {fromToken} ≈{' '}
-              {fromToken === 'SOL' && toToken === 'USDC' ? '100' : '0.01'} {toToken}
+              1 {fromToken} ≈ {quote.price.toFixed(6)} {toToken}
             </span>
           </div>
           <div className="flex justify-between items-center text-gray-400">
@@ -215,7 +244,9 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
               </svg>
               价格影响
             </span>
-            <span className="text-green-400 font-medium">&lt; 0.01%</span>
+            <span className={`font-medium ${quote.priceImpact > 1 ? 'text-red-400' : quote.priceImpact > 0.5 ? 'text-yellow-400' : 'text-green-400'}`}>
+              {quote.priceImpact.toFixed(2)}%
+            </span>
           </div>
           <div className="flex justify-between items-center text-gray-400">
             <span className="flex items-center gap-2">
@@ -225,9 +256,17 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
               最小接收
             </span>
             <span className="text-white font-medium">
-              {(parseFloat(toAmount) * (1 - slippage / 100)).toFixed(6)} {toToken}
+              {quote.minimumReceived.toFixed(6)} {toToken}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* 加载状态提示 */}
+      {isLoadingQuote && (
+        <div className="mt-6 p-4 bg-blue-500/10 backdrop-blur-sm rounded-xl border border-blue-500/30 flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-blue-400">正在获取最优报价...</span>
         </div>
       )}
 
@@ -264,7 +303,7 @@ export function SwapPanel({ defaultFrom = 'SOL', defaultTo = 'USDC' }: SwapPanel
       {/* 提示信息 */}
       <div className="mt-4 text-center">
         <p className="text-xs text-gray-500">
-          由 <span className="text-purple-400 font-medium">Jupiter</span> 聚合器提供最优路径
+          通过 <span className="text-purple-400 font-medium">Uniswap</span> 等 DEX 提供最优兑换路径
         </p>
       </div>
     </div>
@@ -312,10 +351,10 @@ function TokenSelector({
       {isOpen && (
         <>
           {/* 遮罩层 */}
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
           {/* 菜单 */}
-          <div className="absolute top-full mt-2 right-0 bg-gray-800 rounded-lg border border-gray-700 shadow-xl z-20 min-w-[200px] overflow-hidden">
+          <div className="absolute top-full mt-2 right-0 bg-gray-800 rounded-lg border border-gray-700 shadow-xl z-50 min-w-[200px] overflow-hidden">
             {availableTokens.map((token) => {
               const info = getTokenBySymbol(token);
               return (
