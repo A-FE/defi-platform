@@ -33,7 +33,7 @@ export function TradingLayout({ children }: TradingLayoutProps) {
               </div>
               <div>
                 <h1 className="text-xl font-bold">DeFi Trading</h1>
-                <p className="text-xs text-gray-400">Solana DEX Platform</p>
+                <p className="text-xs text-gray-400">Decentralized Exchange</p>
               </div>
             </Link>
 
@@ -93,7 +93,7 @@ export function TradingLayout({ children }: TradingLayoutProps) {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-gray-400">
             <div>
-              <p>DeFi Trading - Powered by Solana</p>
+              <p>DeFi Trading - Multi-Chain DEX Platform</p>
             </div>
             <div className="flex items-center gap-4">
               <a href="#" className="hover:text-white transition-colors">

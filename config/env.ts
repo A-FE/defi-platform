@@ -1,4 +1,6 @@
-import { SolanaNetwork, RPCConfig } from '@/types/solana';
+/**
+ * 环境变量配置 - EVM 版本
+ */
 
 /**
  * 获取环境变量（带类型安全）
@@ -12,12 +14,10 @@ function getEnvVar(key: string, defaultValue?: string): string {
 }
 
 /**
- * Solana RPC 配置
+ * WebSocket 配置
  */
-export const RPC_CONFIG: RPCConfig = {
-  url: getEnvVar('NEXT_PUBLIC_SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com'),
-  network: getEnvVar('NEXT_PUBLIC_SOLANA_NETWORK', 'mainnet-beta') as SolanaNetwork,
-  wsUrl: getEnvVar('NEXT_PUBLIC_WS_URL', 'ws://localhost:8080'),
+export const WS_CONFIG = {
+  url: getEnvVar('NEXT_PUBLIC_WS_URL', 'ws://localhost:8080'),
 };
 
 /**

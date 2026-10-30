@@ -1,8 +1,8 @@
 // 市场数据类型
 export * from './market';
 
-// Solana 类型
-export * from './solana';
+// EVM 类型
+export * from './evm';
 
 // API 类型
 export * from './api';

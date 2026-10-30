@@ -1,5 +1,5 @@
 import { KlineInterval, KlineBar, DepthItem, TickerData, AssetData, Position } from './market';
-import { WalletInfo } from './solana';
+import { WalletInfo } from './evm';
 
 /**
  * K线缓存项（V2：使用原始 KlineBar）
