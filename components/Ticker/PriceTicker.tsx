@@ -19,13 +19,13 @@ interface PriceTickerProps {
  * ✅ 性能优化：使用 React.memo 避免父组件重渲染时的不必要更新
  */
 const PriceTickerComponent = ({ symbol }: PriceTickerProps) => {
-  // ✅ 性能优化：使用 selector 只订阅最新的 bar，避免整个 bars 数组变化时重渲染
+  // ✅ 订阅最新的 bar（直接订阅，Zustand 会自动处理浅比较）
   const latestBar = useKlineStore((state) =>
     state.bars.length > 0 ? state.bars[state.bars.length - 1] : null,
   );
-  const { getCrosshair } = useChartCrosshairStore();
 
-  const crosshair = getCrosshair(symbol);
+  // ✅ 修复：直接订阅 crosshair 状态变化，而不是使用 getCrosshair 函数
+  const crosshair = useChartCrosshairStore((state) => state.crosshairs[symbol] || null);
 
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | null>(null);
   const prevPriceRef = useRef<number>(0);

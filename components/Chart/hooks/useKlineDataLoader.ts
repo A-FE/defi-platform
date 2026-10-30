@@ -18,6 +18,7 @@ interface UseKlineDataLoaderProps {
   onDisplayDataLoaded: (bars: KlineBar[] | ((prev: KlineBar[]) => KlineBar[])) => void; // 显示数据回调
   onOldestTimeUpdate: (time: number) => void;
   enabledIndicators: IndicatorConfig[]; // ✅ 新增：启用的指标列表
+  updateBar?: (symbol: string, bar: KlineBar) => void; // ✅ 新增：更新 Store 中的 bar
 }
 
 /**
@@ -39,6 +40,7 @@ export function useKlineDataLoader({
   onDisplayDataLoaded,
   onOldestTimeUpdate,
   enabledIndicators, // ✅ 启用的指标列表
+  updateBar, // ✅ 更新 Store 中的 bar
 }: UseKlineDataLoaderProps) {
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
   const isReloadingRef = useRef<boolean>(false);
@@ -212,7 +214,7 @@ export function useKlineDataLoader({
               });
             }
 
-            // ✅ 通知外部更新完整数据
+            // ✅ 更新完整数据（用于指标计算）
             onDataLoaded((prev: KlineBar[]) => {
               const newData = [...prev];
               const lastIndex = newData.findIndex(b => b.time === bar.time);
@@ -230,7 +232,7 @@ export function useKlineDataLoader({
               return newData;
             });
 
-            // ✅ 通知外部更新显示数据（与完整数据保持一致）
+            // ✅ 更新显示数据（与完整数据保持一致）
             onDisplayDataLoaded((prev: KlineBar[]) => {
               const newData = [...prev];
               const lastIndex = newData.findIndex(b => b.time === bar.time);
@@ -247,6 +249,11 @@ export function useKlineDataLoader({
 
               return newData;
             });
+
+            // ✅ 同步更新 Store（让 PriceTicker 能够获取到实时更新）
+            if (updateBar) {
+              updateBar(symbol, bar);
+            }
           } catch (error) {
             console.error('[useKlineDataLoader] Update failed:', error);
           }

@@ -43,7 +43,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   const [klineData, setKlineData] = useState<KlineBar[]>([]);
 
   // ========== Store ==========
-  const { fetchKlines, subscribeBars } = useKlineStore();
+  const { fetchKlines, subscribeBars, updateBar } = useKlineStore();
 
   // ========== 响应式订阅启用的指标 ==========
   const enabledIndicators = useEnabledIndicators();
@@ -107,6 +107,7 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
       oldestTimeRef.current = time;
     },
     enabledIndicators, // ✅ 传入启用的指标列表
+    updateBar, // ✅ 传入 Store 的 updateBar 函数
   });
 
   // ========== 5. 指标渲染 ==========

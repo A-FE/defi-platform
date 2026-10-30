@@ -105,12 +105,97 @@ export const useKlineStore = create<KlineState>()(
       },
 
       /**
-       * 订阅实时 K线更新（仅 Bitquery 模式）
+       * 订阅实时 K线更新
+       * Mock 模式：使用定时器生成实时更新（每 2 秒）
+       * Bitquery 模式：使用轮询机制（每 5 秒）
        */
-      subscribeBars: (_symbol, _interval, _lastBar, _callback) => {
-        console.warn('[subscribeBars] Real-time updates not available without WebSocket');
-        // 返回空的取消订阅函数
-        return () => {};
+      subscribeBars: (symbol, interval, lastBar, callback) => {
+        const apiKey = process.env.NEXT_PUBLIC_BITQUERY_API_KEY || process.env.BITQUERY_API_KEY;
+        const useBitquery = process.env.NEXT_PUBLIC_USE_BITQUERY === 'true' && Boolean(apiKey);
+
+        // Mock 模式：使用定时器生成实时更新
+        if (!useBitquery) {
+          console.info('[subscribeBars] Mock mode: starting real-time updates');
+
+          let isCancelled = false;
+          const updateInterval = 2000; // 2 秒更新一次
+
+          // 获取或创建 Session
+          const session = klineSessionManager.getOrCreateSession(symbol, interval);
+          session.setLastBar(lastBar);
+
+          const update = () => {
+            if (isCancelled) {return;}
+
+            try {
+              // 获取当前 K 线的对齐时间
+              const now = Math.floor(Date.now() / 1000);
+              const intervalSeconds = getIntervalSeconds(interval);
+              const currentBarTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+
+              // 生成实时更新
+              const bar = session.generateRealtimeUpdate(currentBarTime);
+              callback(bar);
+
+              console.info('[subscribeBars] Mock update:', {
+                time: new Date(bar.time * 1000).toISOString(),
+                close: bar.close,
+              });
+            } catch (error) {
+              console.error('[subscribeBars] Mock update error:', error);
+            }
+
+            // 继续下一次更新
+            if (!isCancelled) {
+              setTimeout(update, updateInterval);
+            }
+          };
+
+          // 启动更新
+          setTimeout(update, updateInterval);
+
+          // 返回取消函数
+          return () => {
+            console.info('[subscribeBars] Mock mode: stopped updates');
+            isCancelled = true;
+          };
+        }
+
+        // Bitquery 模式：使用轮询
+        console.info('[subscribeBars] Bitquery mode: starting polling');
+
+        let isCancelled = false;
+        const pollInterval = 5000; // 5 秒轮询一次
+
+        const poll = async () => {
+          if (isCancelled) {return;}
+
+          try {
+            const now = Math.floor(Date.now() / 1000);
+            const from = now - (2 * getIntervalSeconds(interval));
+            const bars = await bitqueryKlineService.fetchKlineData(symbol, interval, from, now);
+
+            if (bars.length > 0 && !isCancelled) {
+              const latestBar = bars[bars.length - 1];
+              if (latestBar.time >= lastBar.time) {
+                callback(latestBar);
+              }
+            }
+          } catch (error) {
+            console.error('[subscribeBars] Polling error:', error);
+          }
+
+          if (!isCancelled) {
+            setTimeout(poll, pollInterval);
+          }
+        };
+
+        setTimeout(poll, pollInterval);
+
+        return () => {
+          console.info('[subscribeBars] Bitquery mode: stopped polling');
+          isCancelled = true;
+        };
       },
 
       /**
