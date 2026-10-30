@@ -8,14 +8,10 @@ import { useChartInit } from './useChartInit';
 import { useTimeFormatUpdate } from './useTimeFormatUpdate';
 import { useKlineDataLoader } from './useKlineDataLoader';
 import { useInfiniteLoadHistory } from './useInfiniteLoadHistory';
-import { useIndicatorRendererV2 } from './useIndicatorRendererV2';
 import { useEnabledIndicators } from './useEnabledIndicators';
 import { useIndicatorLegend } from './useIndicatorLegend';
 import { useCrosshairListener } from './useCrosshairListener';
 import { useSeriesTypeSwitch } from './useSeriesTypeSwitch';
-
-// Feature Flag
-import { FEATURE_FLAGS, logFeatureFlag } from '@/services/indicators/v2/featureFlags';
 
 interface UseKlineChartProps {
   symbol: string;
@@ -111,40 +107,24 @@ export function useKlineChart({ symbol, initialInterval = '1h' }: UseKlineChartP
   });
 
   // ========== 5. 指标渲染 ==========
-  // ✅ 性能优化：使用统一的数据源
-  // ✅ V2 架构：通过 Feature Flag 切换新旧版本
+  // ✅ 使用稳定的 IndicatorManager 渲染指标
   useEffect(() => {
-    logFeatureFlag('USE_INDICATOR_V2', 'useKlineChart');
-  }, []);
-
-  // ✅ 修复：避免条件调用 Hook，两个都调用，通过内部逻辑控制
-  const useV2 = FEATURE_FLAGS.USE_INDICATOR_V2;
-
-  // V2 Hook（总是调用，内部判断是否执行）
-  useIndicatorRendererV2({
-    chartRef,
-    klineData,
-    enabledIndicators,
-    symbol,
-    interval,
-    enabled: useV2,
-  });
-
-  // 旧版 Hook（通过 enabled 控制）
-  useEffect(() => {
-    if (!useV2) {
-      // 旧版渲染逻辑
-      if (!chartRef.current || !managerRef.current || klineData.length === 0) {
-        return;
-      }
-
-      managerRef.current.updateIndicators(
-        klineData,
-        klineData,
-        enabledIndicators,
-      );
+    if (!chartRef.current || !managerRef.current || klineData.length === 0) {
+      return;
     }
-  }, [useV2, chartRef, managerRef, klineData, enabledIndicators]);
+
+    if (enabledIndicators.length === 0) {
+      managerRef.current.clear();
+      return;
+    }
+
+    // 使用统一的数据源渲染指标
+    managerRef.current.updateIndicators(
+      klineData,
+      klineData,
+      enabledIndicators,
+    );
+  }, [chartRef, managerRef, klineData, enabledIndicators]);
 
   // ========== 6. 指标图例 ==========
   const { legends } = useIndicatorLegend({
