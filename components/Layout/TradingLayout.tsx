@@ -16,7 +16,7 @@ export function TradingLayout({ children }: TradingLayoutProps) {
 
   const navItems = [
     { href: '/market', label: '行情', icon: '📊' },
-    { href: '/market/swap', label: 'Swap', icon: '🔄' },
+    { href: '/market/swap', label: '兑换', icon: '🔄' },
     { href: '/market/portfolio', label: '资产', icon: '💼' },
   ];
 

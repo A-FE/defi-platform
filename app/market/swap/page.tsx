@@ -10,7 +10,7 @@ const SwapPanel = dynamic(() => import('@/components/Swap/SwapPanel'), {
 });
 
 /**
- * Swap 交易页面
+ * 代币兑换页面
  */
 export default function SwapPage() {
   return (
@@ -88,7 +88,7 @@ export default function SwapPage() {
             </div>
           </div>
 
-          {/* 中间：Swap 表单 */}
+          {/* 中间：兑换表单 */}
           <div className="lg:col-span-5">
             <Suspense fallback={<SwapSkeleton />}>
               <SwapPanel defaultFrom="ETH" defaultTo="USDC" />
@@ -180,7 +180,7 @@ export default function SwapPage() {
 }
 
 /**
- * Swap 骨架屏
+ * 兑换骨架屏
  */
 function SwapSkeleton() {
   return (

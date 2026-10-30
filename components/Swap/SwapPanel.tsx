@@ -12,7 +12,7 @@ interface SwapPanelProps {
 }
 
 /**
- * Swap 交易面板 - EVM 版本
+ * 代币兑换面板 - EVM 版本
  */
 export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT_SWAP_TO }: SwapPanelProps) {
   const { wallet } = useWalletStore();
@@ -106,7 +106,7 @@ export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT
     }
   };
 
-  // 执行 Swap
+  // 执行兑换
   const handleSwap = async () => {
     if (!wallet?.connected) {
       notify.warning('请先连接钱包', '需要连接钱包才能进行交易');
@@ -134,7 +134,7 @@ export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 p-6 shadow-2xl">
       {/* 标题栏 */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-bold text-white">Swap</h3>
+        <h3 className="text-2xl font-bold text-white">兑换</h3>
         <button
           onClick={() => setSlippage(slippage === 0.5 ? 1 : 0.5)}
           className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-700"
@@ -270,7 +270,7 @@ export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT
         </div>
       )}
 
-      {/* Swap 按钮 */}
+      {/* 兑换按钮 */}
       <button
         onClick={handleSwap}
         disabled={!wallet?.connected || !fromAmount}
