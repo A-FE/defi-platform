@@ -112,7 +112,7 @@ function testCachePerformance() {
   const cache = new IndicatorCache();
   const calculator = new IndicatorCalculator();
   const bars = generateTestBars(200);
-  const barsHash = hashBars(bars);
+  const barsHash = hashBars(bars as unknown as Record<string, unknown>[]);
 
   const config: IndicatorConfig = {
     type: 'MACD',

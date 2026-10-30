@@ -8,10 +8,11 @@
  */
 export interface WalletInfo {
   address: `0x${string}`;      // EVM 地址格式
-  chainId: number;             // 链 ID (1=Mainnet, 137=Polygon)
+  publicKey: `0x${string}`;    // 与 address 相同（兼容旧代码）
   connected: boolean;
   balance: bigint;             // ETH/MATIC 余额（wei 单位）
-  balanceFormatted: string;    // 格式化余额（带单位）
+  chainId?: number;            // 链 ID (1=Mainnet, 137=Polygon)
+  balanceFormatted?: string;   // 格式化余额（带单位）
 }
 
 /**

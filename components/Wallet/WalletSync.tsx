@@ -22,7 +22,8 @@ export function WalletSync() {
         address: address,
         publicKey: address,
         connected: true,
-        balance: balance ? Number(balance.formatted) : 0,
+        balance: balance?.value || 0n,
+        balanceFormatted: balance?.formatted,
       });
     } else {
       // 断开连接时清空

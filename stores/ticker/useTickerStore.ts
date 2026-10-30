@@ -89,7 +89,7 @@ export const useTickerStore = create<TickerState>((set, get) => ({
     // 订阅 WebSocket Ticker 流（如果有）
     const unsubscribe = wsCenter.subscribe('ticker', (message) => {
       if (message.symbol === symbol && message.data) {
-        get().updateTicker(symbol, message.data);
+        get().updateTicker(symbol, message.data as TickerData);
       }
     });
 

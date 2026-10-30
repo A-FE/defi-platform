@@ -39,15 +39,15 @@ export function adaptKlineData(trades: BitqueryTrade[]): KlineBar[] {
 
   // 先转换数据
   const bars = trades.map((trade) => {
-    const time = Math.floor(new Date(trade.Block?.Time).getTime() / 1000);
+    const time = Math.floor(new Date(trade.Block?.Time ?? Date.now()).getTime() / 1000);
 
     return {
       time,
-      open: parseFloat(trade.Trade?.open) || 0,
-      high: parseFloat(trade.Trade?.high) || 0,
-      low: parseFloat(trade.Trade?.low) || 0,
-      close: parseFloat(trade.Trade?.close) || 0,
-      volume: parseFloat(trade.volume) || 0,
+      open: parseFloat(trade.Trade?.open ?? '0'),
+      high: parseFloat(trade.Trade?.high ?? '0'),
+      low: parseFloat(trade.Trade?.low ?? '0'),
+      close: parseFloat(trade.Trade?.close ?? '0'),
+      volume: parseFloat(trade.volume ?? '0'),
     };
   });
 
@@ -101,15 +101,15 @@ export function adaptTickerData(data: BitqueryTrade[], symbol: string): TickerDa
 
   // 汇总所有交易数据
   const latestTrade = data[0];
-  const latestPrice = parseFloat(latestTrade.Trade?.price) || 0;
+  const latestPrice = parseFloat(latestTrade.Trade?.price ?? '0');
 
   // 计算 24h 统计
-  const high24h = Math.max(...data.map((t) => parseFloat(t.Trade?.high24h) || 0));
-  const low24h = Math.min(...data.map((t) => parseFloat(t.Trade?.low24h) || latestPrice));
-  const volume24h = data.reduce((sum, t) => sum + (parseFloat(t.volume24h) || 0), 0);
+  const high24h = Math.max(...data.map((t) => parseFloat(t.Trade?.high24h ?? '0')));
+  const low24h = Math.min(...data.map((t) => parseFloat(t.Trade?.low24h ?? String(latestPrice))));
+  const volume24h = data.reduce((sum, t) => sum + parseFloat(t.volume24h ?? '0'), 0);
 
   // 计算涨跌幅（使用 24h 前的价格）
-  const oldestPrice = parseFloat(data[data.length - 1]?.Trade?.price) || latestPrice;
+  const oldestPrice = parseFloat(data[data.length - 1]?.Trade?.price ?? String(latestPrice));
   const change24h = oldestPrice !== 0 ? ((latestPrice - oldestPrice) / oldestPrice) * 100 : 0;
 
   const result = {
@@ -147,7 +147,7 @@ export function adaptDepthData(trades: BitqueryTrade[]): DepthData {
 
   // 收集所有价格并计算中间价
   const prices = trades
-    .map((trade) => parseFloat(trade.Trade?.Price))
+    .map((trade) => parseFloat(trade.Trade?.Price ?? '0'))
     .filter((price) => !isNaN(price) && price > 0);
 
   if (prices.length === 0) {
@@ -169,8 +169,8 @@ export function adaptDepthData(trades: BitqueryTrade[]): DepthData {
   const asksMap = new Map<number, number>();
 
   trades.forEach((trade) => {
-    const price = parseFloat(trade.Trade?.Price);
-    const amount = parseFloat(trade.Trade?.Amount);
+    const price = parseFloat(trade.Trade?.Price ?? '0');
+    const amount = parseFloat(trade.Trade?.Amount ?? '0');
 
     if (!price || !amount || isNaN(price) || isNaN(amount)) {
       return;

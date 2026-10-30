@@ -20,9 +20,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     set({
       wallet: walletData ? {
         address: walletData.address,
-        publicKey: walletData.publicKey || walletData.address,
+        publicKey: walletData.publicKey,
         connected: walletData.connected,
-        balance: walletData.balance || 0,
+        balance: walletData.balance,
+        chainId: walletData.chainId,
+        balanceFormatted: walletData.balanceFormatted,
       } : null,
     });
   },
@@ -50,7 +52,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
    * 更新余额
    * 由外部调用传入真实余额
    */
-  updateBalance: async (balance?: number) => {
+  updateBalance: async (balance?: bigint) => {
     const { wallet } = get();
     if (!wallet) {return;}
 

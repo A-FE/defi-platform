@@ -135,7 +135,7 @@ export const useAssetStore = create<AssetState>((set, get) => ({
   /**
    * 防抖版本的 calculatePnL（避免频繁计算）
    */
-  calculatePnLDebounced: debounce((priceMap?: Record<string, number>) => {
-    get().calculatePnL(priceMap);
+  calculatePnLDebounced: debounce((...args: unknown[]) => {
+    get().calculatePnL(args[0] as Record<string, number> | undefined);
   }, 1000),
 }));

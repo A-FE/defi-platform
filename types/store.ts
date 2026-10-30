@@ -93,5 +93,5 @@ export interface WalletState {
   setWallet: (walletData: WalletInfo | null) => void;
   connect: () => Promise<void>;
   disconnect: () => void;
-  updateBalance: (balance?: number) => Promise<void>;
+  updateBalance: (balance?: bigint) => Promise<void>;
 }

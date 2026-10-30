@@ -57,7 +57,8 @@ export class BitqueryKlineService {
       const response = await bitqueryClient.query(KLINE_QUERY, variables);
 
       // 提取交易数据
-      const trades = response?.EVM?.DEXTradeByTokens || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const trades = (response as any)?.EVM?.DEXTradeByTokens || [];
 
       if (trades.length === 0) {
         console.warn('[BitqueryKlineService] No trade data returned for', symbol);

@@ -153,7 +153,7 @@ export function SwapPanel({ defaultFrom = DEFAULT_SWAP_FROM, defaultTo = DEFAULT
                 onClick={() => handleFromAmountChange(wallet.balance.toString())}
                 className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
               >
-                余额: {wallet.balance.toFixed(4)} {fromToken}
+                余额: {Number(wallet.balance).toFixed(4)} {fromToken}
               </button>
             )}
           </div>

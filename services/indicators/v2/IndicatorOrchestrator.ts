@@ -37,7 +37,7 @@ export class IndicatorOrchestrator {
     bars: KlineBar[],
     configs: IndicatorConfig[],
   ): Promise<void> {
-    const barsHash = hashBars(bars);
+    const barsHash = hashBars(bars as unknown as Record<string, unknown>[]);
     const enabledConfigs = configs.filter((c) => c.enabled);
 
     console.info('[IndicatorOrchestrator] Updating indicators:', {
